@@ -23,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: {
         'grant_type': 'password',
         'client_secret': 'aqJp3xnXKudgC7RMOshEQP7ZoVKWzoSl',
-        'client_id': 'setoran-mobile-dev', // ← sesuaikan dengan client_id kamu
+        'client_id': 'setoran-mobile-dev',
         'username': usernameController.text,
         'password': passwordController.text,
       },
