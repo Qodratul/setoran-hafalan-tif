@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -15,28 +16,47 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> login() async {
     setState(() => isLoading = true);
+
     final response = await http.post(
       Uri.parse('https://id.tif.uin-suska.ac.id/realms/dev/protocol/openid-connect/token'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'}, // HARUS ganti ke form-urlencoded
+      body: {
+        'grant_type': 'password',
+        'client_secret': 'aqJp3xnXKudgC7RMOshEQP7ZoVKWzoSl',
+        'client_id': 'setoran-mobile-dev', // ← sesuaikan dengan client_id kamu
         'username': usernameController.text,
         'password': passwordController.text,
-      }),
+      },
     );
 
     setState(() => isLoading = false);
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      final accessToken = data['access_token'];
+      final idToken = data['id_token'];
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', data['access_token']);
+
+      // Simpan token
+      await prefs.setString('token', accessToken);
+
+      // Decode untuk ambil nama dan email
+      Map<String, dynamic> decodedToken = JwtDecoder.decode(idToken);
+      String nama = decodedToken['name'];
+      String email = decodedToken['email'];
+
+      // Simpan ke SharedPreferences juga (jika mau ditampilkan di dashboard)
+      await prefs.setString('nama', nama);
+      await prefs.setString('email', email);
+
       Navigator.pushReplacementNamed(context, '/dashboard');
     } else {
+      print('Response: ${response.body}');
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text('Login Failedd'),
-          content: Text('Email or password is incorrect'),
+          title: Text('Login Failed'),
+          content: Text('Email atau password salah'),
           actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('OK'))],
         ),
       );
