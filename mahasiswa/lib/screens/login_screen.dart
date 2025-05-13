@@ -1,116 +1,270 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
+import '../constants.dart';
+import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({Key? key}) : super(key: key);
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController usernameController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  bool isLoading = false;
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+  String? _errorMessage;
 
-  Future<void> login() async {
-    setState(() => isLoading = true);
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
-    final response = await http.post(
-      Uri.parse('https://id.tif.uin-suska.ac.id/realms/dev/protocol/openid-connect/token'),
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'}, // HARUS ganti ke form-urlencoded
-      body: {
-        'grant_type': 'password',
-        'client_secret': 'aqJp3xnXKudgC7RMOshEQP7ZoVKWzoSl',
-        'client_id': 'setoran-mobile-dev',
-        'username': usernameController.text,
-        'password': passwordController.text,
-      },
-    );
+  void _togglePasswordVisibility() {
+    setState(() {
+      _obscurePassword = !_obscurePassword;
+    });
+  }
 
-    setState(() => isLoading = false);
+  Future<void> _login() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _errorMessage = null;
+      });
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final accessToken = data['access_token'];
-      final idToken = data['id_token'];
-      final prefs = await SharedPreferences.getInstance();
+      final email = _emailController.text;
+      final password = _passwordController.text;
+      final authService = Provider.of<AuthService>(context, listen: false);
 
-      // Simpan token
-      await prefs.setString('token', accessToken);
+      final success = await authService.login(email, password);
 
-      // Decode untuk ambil nama dan email
-      Map<String, dynamic> decodedToken = JwtDecoder.decode(idToken);
-      String nama = decodedToken['name'];
-      String email = decodedToken['email'];
-
-      // Simpan ke SharedPreferences juga (jika mau ditampilkan di dashboard)
-      await prefs.setString('nama', nama);
-      await prefs.setString('email', email);
-
-      Navigator.pushReplacementNamed(context, '/dashboard');
-    } else {
-      print('Response: ${response.body}');
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text('Login Failed'),
-          content: Text('Email atau password salah'),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('OK'))],
-        ),
-      );
+      if (success) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      } else {
+        setState(() {
+          _errorMessage = 'Login gagal. Periksa email dan password Anda.';
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = Provider.of<AuthService>(context).isLoading;
+
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Setoran Hafalan', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue)),
-            SizedBox(height: 8),
-            Text('Aplikasi Setoran Hafalan UIN Suska Riau', style: TextStyle(color: Colors.grey)),
-            SizedBox(height: 32),
-            TextField(
-              controller: usernameController,
-              decoration: InputDecoration(
-                prefixIcon: Icon(Icons.email),
-                hintText: 'Email',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Constants.primaryColor,
+              Colors.teal,
+              Color(0xFF00A890),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // App title
+                  const Text(
+                    'Setoran Hafalan',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // App subtitle
+                  const Text(
+                    'Aplikasi Setoran\nHafalan Uin Suska Riau',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white,
+                      height: 1.3,
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Sign in text
+                  const Text(
+                    'Sign in to your Account',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Login form
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        // Email field
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            style: const TextStyle(color: Colors.black),
+                            decoration: const InputDecoration(
+                              prefixIcon: Icon(Icons.email_outlined, color: Colors.teal),
+                              hintText: 'Email UIN Suska',
+                              hintStyle: TextStyle(color: Colors.grey),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Email tidak boleh kosong';
+                              }
+                              if (!value.contains('@')) {
+                                return 'Format email tidak valid';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Password field
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: TextFormField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            style: const TextStyle(color: Colors.black),
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.lock_outline, color: Colors.teal),
+                              hintText: 'Password',
+                              hintStyle: const TextStyle(color: Colors.grey),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: _togglePasswordVisibility,
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Password tidak boleh kosong';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Error message
+                        if (_errorMessage != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Text(
+                              _errorMessage!,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+
+                        // Forgot password link
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              // TODO: Implementasi function lupa password
+                            },
+                            child: const Text(
+                              'Forgot Your Password?',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Login button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: isLoading ? null : _login,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Constants.primaryColor,
+                              elevation: 3,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: isLoading
+                                ? const CircularProgressIndicator()
+                                : const Text(
+                              'Log In',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: InputDecoration(
-                prefixIcon: Icon(Icons.lock),
-                hintText: 'Password',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {},
-                child: Text('Forgot Your Password?'),
-              ),
-            ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: isLoading ? null : login,
-              child: isLoading ? CircularProgressIndicator() : Text('Log In'),
-              style: ElevatedButton.styleFrom(
-                minimumSize: Size.fromHeight(50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
