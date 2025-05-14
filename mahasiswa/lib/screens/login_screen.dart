@@ -80,31 +80,61 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // App title
+                  // Header dengan status bar dan logo
+                  SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Container(
+                        height: 40,
+                        width: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(18),
+                            bottomLeft: Radius.circular(18),
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(5.0),
+                          child: Image.asset('assets/images/uin.png'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Judul dan subtitle
+                  SizedBox(height: 30),
                   const Text(
                     'Setoran Hafalan',
                     style: TextStyle(
+                      color: Colors.white,
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontFamily: 'Poppins',
                     ),
                   ),
-                  const SizedBox(height: 8),
 
                   // App subtitle
-                  const Text(
+                  Text(
                     'Aplikasi Setoran\nHafalan Uin Suska Riau',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                      height: 1.3,
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 16,
+                      fontFamily: 'Poppins',
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  // Gambar Quran dengan dekorasi
+                  SizedBox(height: 10),
+                  Container(
+                    height: 300,
+                    child: Image.asset('assets/images/al-quran.png'),
+                  ),
 
                   // Sign in text
+                  const SizedBox(height: 10),
                   const Text(
                     'Sign in to your Account',
                     style: TextStyle(
@@ -221,43 +251,76 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: () {
                               // TODO: Implementasi function lupa password
                             },
-                            child: const Text(
-                              'Forgot Your Password?',
+                            child: Text(
+                              'Forgot Your Password ?',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontWeight: FontWeight.w500,
+                                fontFamily: 'Inter',
+                                fontSize: 12,
                               ),
                             ),
                           ),
                         ),
-
-                        const SizedBox(height: 24),
 
                         // Login button
                         SizedBox(
                           width: double.infinity,
-                          height: 56,
                           child: ElevatedButton(
                             onPressed: isLoading ? null : _login,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Constants.primaryColor,
-                              elevation: 3,
+                              padding: EdgeInsets.symmetric(vertical: 15),
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: Colors.transparent, // Ganti 'primary'
+                              shadowColor: Color.fromRGBO(55, 93, 251, 1),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                               ),
+                              elevation: 0,
                             ),
-                            child: isLoading
-                                ? const CircularProgressIndicator()
-                                : const Text(
-                              'Log In',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                            child: Ink(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment(1, 0),
+                                  end: Alignment(0, 1),
+                                  colors: [
+                                    Color.fromRGBO(237, 250, 220, 1),
+                                    Color.fromRGBO(211, 231, 184, 1),
+                                    Color.fromRGBO(185, 213, 148, 1),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    isLoading
+                                        ? SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFF283D34),
+                                      ),
+                                    )
+                                        : SizedBox(),
+                                    SizedBox(width: 10),
+                                    Text(
+                                      'Log In',
+                                      style: TextStyle(
+                                        color: Color(0xFF283D34),
+                                        fontFamily: 'Inter',
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
+                        SizedBox(height:40),
                       ],
                     ),
                   ),
