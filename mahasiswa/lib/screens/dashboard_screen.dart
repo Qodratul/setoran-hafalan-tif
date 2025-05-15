@@ -6,6 +6,7 @@ import '../models/surah_model.dart';
 import '../services/auth_service.dart';
 import '../services/setoran_service.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -123,6 +124,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               Constants.primaryColor,
               Colors.teal,
               Color(0xFF00A890),
+              Color(0xFF115d5d),
+              Color(0xFF097C66),
+              Color(0xFFC0EFB9),
             ],
           ),
         ),
@@ -138,17 +142,25 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Colors.white,
-                          child: Icon(
-                            Icons.person,
-                            size: 40,
-                            color: Constants.primaryColor,
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => ProfileScreen(user: userInfo!)),
+                            );
+                          },
+                          child: const CircleAvatar(
+                            radius: 30,
+                            backgroundColor: Colors.white,
+                            child: Icon(
+                              Icons.person,
+                              size: 40,
+                              color: Constants.primaryColor,
+                            ),
                           ),
                         ),
 
-                        const SizedBox(width: 50),
+                        const SizedBox(width: 80),
 
                         ElevatedButton.icon(
                           onPressed: () {
@@ -161,60 +173,67 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                             foregroundColor: Constants.primaryColor,
                           ),
                         ),
+
                         // Logout button
                         IconButton(
                           onPressed: _logout,
-                          icon: const Icon(Icons.logout),
+                          icon: Image.asset(
+                            'assets/images/out.png',
+                            width: 24,
+                            height: 24,
+                          ),
                           style: IconButton.styleFrom(
-                            backgroundColor: Colors.white,
                             foregroundColor: Constants.primaryColor,
                           ),
-                        )
+                        ),
+
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Assalamu\'alaikum',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    Text(
-                      userInfo?.nama ?? 'Mahasiswa',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'NIM: ${userInfo?.nim ?? ''}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      'Semester: ${userInfo?.semester ?? ''}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      'Dosen Pembimbing: ${userInfo?.dosenPa.nama ?? ''}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
+                    const SizedBox(height: 24),
+
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Assalamu\'alaikum',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                              Text(
+                                userInfo?.nama ?? 'Mahasiswa',
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          width: 110,
+                          height: 100,
+                          decoration: const BoxDecoration(
+                            image: DecorationImage(
+                              image: AssetImage('assets/images/orang.png'),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 0),
 
               // Search bar dan Tabs
               Expanded(
@@ -270,7 +289,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                           separatorBuilder: (context, index) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final surah = filteredSurahs[index];
-                            return _buildSurahItem(surah);
+                            return _buildSurahItem(context, surah);
                           },
                         ),
                       ),
@@ -285,14 +304,43 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildSurahItem(SurahModel surah) {
+  Widget _buildSurahItem(BuildContext context, SurahModel surah) {
     final String stageLabel = _getStageLabel(surah.label);
+    final Color stageColor = _getStageColor(surah.label);
 
     return InkWell(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text('Info Setoran - ${surah.nama}'),
+            content: surah.infoSetoran != null
+                ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Tanggal Setoran: ${surah.infoSetoran!.tglSetoran}'),
+                Text('Tanggal Validasi: ${surah.infoSetoran!.tglValidasi}'),
+                Text('Dosen Pengesah: ${surah.infoSetoran!.dosenYangMengesahkan.nama}'),
+              ],
+            )
+                : const Text('Belum ada info setoran.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Tutup'),
+              ),
+            ],
+          ),
+        );
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: const BoxDecoration(
-          border: Border(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: surah.sudahSetor ? Colors.green[100] : Colors.red[100],
+          borderRadius: BorderRadius.circular(12),
+          border: const Border(
             left: BorderSide(
               color: Constants.primaryColor,
               width: 4,
@@ -301,45 +349,59 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         ),
         child: Row(
           children: [
-            const SizedBox(width: 16),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    surah.nama,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    stageLabel,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ElevatedButton(
-              onPressed: null, // Disabled button to show status
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Constants.primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+              child: Text(
+                surah.nama,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              child: Text(stageLabel),
             ),
-            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: stageColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                stageLabel,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+
+            ),
+            // const SizedBox(width: 12),
+            // Icon(
+            //   surah.sudahSetor ? Icons.check_circle : Icons.cancel,
+            //   color: surah.sudahSetor ? Colors.green : Colors.red,
+            //   size: 28,
+            // ),
           ],
         ),
       ),
     );
   }
+
+  Color _getStageColor(String code) {
+    switch (code) {
+      case 'KP':
+        return Colors.blueAccent;
+      case 'SEMKP':
+        return Colors.teal;
+      case 'DAFTAR_TA':
+        return Colors.amber;
+      case 'SEMPRO':
+        return Colors.deepOrange;
+      case 'SIDANG_TA':
+        return Colors.redAccent;
+      default:
+        return Colors.grey;
+    }
+  }
+
 
   String _getStageLabel(String code) {
     return Constants.labelMap[code] ?? code;

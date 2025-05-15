@@ -68,7 +68,9 @@ class _LoginScreenState extends State<LoginScreen> {
             colors: [
               Constants.primaryColor,
               Colors.teal,
-              Color(0xFF00A890),
+              Color(0xFF115d5d),
+              Color(0xFF097C66),
+              Color(0xFFC0EFB9),
             ],
           ),
         ),
