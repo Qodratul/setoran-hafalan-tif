@@ -12,13 +12,6 @@ class Constants {
   static String get clientSecret => dotenv.env['CLIENT_SECRET'] ?? '';
 
   // Labels
-  static const Map<String, String> labelMap = {
-    "KP": "Kerja Praktek",
-    "SEMKP": "Seminar KP",
-    "DAFTAR_TA": "Pendaftaran TA",
-    "SEMPRO": "Seminar Proposal",
-    "SIDANG_TA": "Sidang TA",
-  };
 
   // Colors
   static const Color primaryColor = Color(0xFF006666);
