@@ -122,10 +122,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         IconButton(
                           icon: const Icon(Icons.logout, color: Colors.white),
                           onPressed: () async {
-                            await authService.logout();
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(builder: (_) => const LoginScreen()),
-                            );
+                            _showLogoutConfirmationDialog();
                           },
                         ),
                       ],
@@ -139,6 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       child: TextField(
                         controller: _searchController,
+                        style: const TextStyle(color: Colors.black),
                         onChanged: (_) => _filterMahasiswa(),
                         decoration: InputDecoration(
                           hintText: 'Cari mahasiswa...',
@@ -411,6 +409,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  void _showLogoutConfirmationDialog() {
+    showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Konfirmasi Logout'),
+            content: const Text('Apakah Anda yakin ingin keluar?'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await Provider.of<AuthService>(context, listen: false).logout();
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
+                },
+                child: const Text('Keluar'),
+              ),
+            ],
+          );
+        });
   }
 
   @override

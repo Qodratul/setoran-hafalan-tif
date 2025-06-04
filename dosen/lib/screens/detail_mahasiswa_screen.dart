@@ -385,7 +385,13 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> {
                 backgroundColor: Constants.primaryColor,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
-                child: const Text('Simpan Setoran'),
+                child: const Text(
+                    'Simpan Setoran',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
               ),
                 ElevatedButton(
                   onPressed: () {
@@ -395,7 +401,13 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> {
                     backgroundColor: Colors.red,
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
-                  child: const Text('Batalkan Setoran'),
+                  child: const Text(
+                      'Batalkan Setoran',
+                    style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                  ),
                 ),
               ],
             ),
