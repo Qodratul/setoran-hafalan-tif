@@ -16,7 +16,8 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> {
   final DosenService _dosenService = DosenService();
   Map<String, dynamic>? _mahasiswaData;
   List<Setoran> _setoranList = [];
-  List<Setoran> _selectedSetoran = [];
+  List<Setoran> _selectedSetoranToSave = [];
+  List<Setoran> _selectedSetoranToCancel = [];
   bool _isLoading = true;
   String _selectedFilter = 'Semua';
 
@@ -31,13 +32,15 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> {
 
     final data = await _dosenService.getSetoranMahasiswa(widget.nim);
     if (data != null && data['response'] == true) {
-    setState(() {
-      _mahasiswaData = data['data'];
-      _setoranList = (data['data']['setoran']['detail'] as List)
-          .map((e) => Setoran.fromJson(e))
-          .toList();
-      _isLoading = false;
-    });
+      setState(() {
+        _mahasiswaData = data['data'];
+        _setoranList = (data['data']['setoran']['detail'] as List)
+            .map((e) => Setoran.fromJson(e))
+            .toList();
+        _isLoading = false;
+        _selectedSetoranToSave.clear();
+        _selectedSetoranToCancel.clear();
+      });
     } else {
       setState(() => _isLoading = false);
     }
@@ -55,15 +58,89 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> {
     }
   }
 
+  bool _isSelected(Setoran setoran) {
+    if (setoran.sudahSetor) {
+      return _selectedSetoranToCancel.contains(setoran);
+    } else {
+      return _selectedSetoranToSave.contains(setoran);
+    }
+  }
+
+  void _toggleSelection(Setoran setoran) {
+    setState(() {
+      if (setoran.sudahSetor) {
+        if (_selectedSetoranToCancel.contains(setoran)) {
+          _selectedSetoranToCancel.remove(setoran);
+        } else {
+          _selectedSetoranToCancel.add(setoran);
+        }
+      } else {
+        if (_selectedSetoranToSave.contains(setoran)) {
+          _selectedSetoranToSave.remove(setoran);
+        } else {
+          _selectedSetoranToSave.add(setoran);
+        }
+      }
+    });
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_selectedFilter == 'Sudah Setor') {
+        final sudahSetorList = _filteredSetoranList;
+        final allSelected = sudahSetorList.every((s) => _selectedSetoranToCancel.contains(s));
+
+        if (allSelected) {
+          _selectedSetoranToCancel.removeWhere((s) => sudahSetorList.contains(s));
+        } else {
+          for (var setoran in sudahSetorList) {
+            if (!_selectedSetoranToCancel.contains(setoran)) {
+              _selectedSetoranToCancel.add(setoran);
+            }
+          }
+        }
+      } else if (_selectedFilter == 'Belum Setor') {
+        final belumSetorList = _filteredSetoranList;
+        final allSelected = belumSetorList.every((s) => _selectedSetoranToSave.contains(s));
+
+        if (allSelected) {
+          // Unselect all
+          _selectedSetoranToSave.removeWhere((s) => belumSetorList.contains(s));
+        } else {
+          // Select all
+          for (var setoran in belumSetorList) {
+            if (!_selectedSetoranToSave.contains(setoran)) {
+              _selectedSetoranToSave.add(setoran);
+            }
+          }
+        }
+      }
+    });
+  }
+
+  bool get _isAllSelected {
+    if (_selectedFilter == 'Sudah Setor') {
+      return _filteredSetoranList.isNotEmpty &&
+          _filteredSetoranList.every((s) => _selectedSetoranToCancel.contains(s));
+    } else if (_selectedFilter == 'Belum Setor') {
+      return _filteredSetoranList.isNotEmpty &&
+          _filteredSetoranList.every((s) => _selectedSetoranToSave.contains(s));
+    }
+    return false;
+  }
+
   Future<void> _simpanSetoran() async {
-    if (_selectedSetoran.isEmpty) {
+    if (_selectedSetoranToSave.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pilih setoran terlebih dahulu')),
+        const SnackBar(
+          content: Text('Pilih setoran yang ingin disimpan terlebih dahulu'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
 
-    final dataSetoran = _selectedSetoran.map((s) => {
+    final dataSetoran = _selectedSetoranToSave.map((s) => {
       'nama_komponen_setoran': s.nama,
       'id_komponen_setoran': s.id,
     }).toList();
@@ -77,44 +154,59 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> {
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-        content: Text('Setoran berhasil disimpan'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    _selectedSetoran.clear();
-    _loadData();
+          content: Text('Setoran berhasil disimpan'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _selectedSetoranToSave.clear();
+      _selectedSetoranToCancel.clear();
+      _loadData();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-        content: Text('Gagal menyimpan setoran'),
-        backgroundColor: Colors.red,
+          content: Text('Gagal menyimpan setoran'),
+          backgroundColor: Colors.red,
         ),
       );
     }
   }
 
-  Future<void> _batalkanSetoran(List<Setoran> setoranList) async {
-    final dataSetoran = setoranList.map((s) => {
+  Future<void> _batalkanSetoran() async {
+    if (_selectedSetoranToCancel.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih setoran yang ingin dibatalkan terlebih dahulu'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final dataSetoran = _selectedSetoranToCancel.map((s) => {
       'id': s.infoSetoran!.id,
       'id_komponen_setoran': s.id,
       'nama_komponen_setoran': s.nama,
     }).toList();
+
+    debugPrint('🔄 Cancelling setoran: $dataSetoran');
 
     final success = await _dosenService.deleteSetoran(widget.nim, dataSetoran);
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-        content: Text('Setoran berhasil dibatalkan'),
-        backgroundColor: Colors.orange,
+          content: Text('Setoran berhasil dibatalkan'),
+          backgroundColor: Colors.orange,
         ),
       );
-    _loadData();
+      _selectedSetoranToSave.clear();
+      _selectedSetoranToCancel.clear();
+      _loadData();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-        content: Text('Gagal membatalkan setoran'),
-        backgroundColor: Colors.red,
+          content: Text('Gagal membatalkan setoran'),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -127,6 +219,7 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> {
         appBar: AppBar(
           backgroundColor: Constants.primaryColor,
           title: const Text('Loading...'),
+          foregroundColor: Colors.white,
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -134,13 +227,13 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> {
 
     final info = _mahasiswaData?['info'];
     final setoranInfo = _mahasiswaData?['setoran']['info_dasar'];
-    final ringkasan = _mahasiswaData?['setoran']['ringkasan'] as List?;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Constants.primaryColor,
-        title: Text(info?['nama'] ?? ''),
+        title: Text("Detail Setoran"),
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: Column(
@@ -303,110 +396,223 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> {
             ),
           ),
 
-          // Setoran List
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _filteredSetoranList.length,
-              itemBuilder: (context, index) {
-                final setoran = _filteredSetoranList[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+          // Select All Checkbox
+          if (_selectedFilter != 'Semua' && _filteredSetoranList.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: _isAllSelected,
+                    onChanged: (value) => _toggleSelectAll(),
+                    activeColor: _selectedFilter == 'Sudah Setor' ? Colors.red : Colors.green,
                   ),
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        if (setoran.sudahSetor) {
-                        _selectedSetoran.remove(setoran);
-                        } else {
-                        _selectedSetoran.add(setoran);
-                        }
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                setoran.nama,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                setoran.label,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                          Checkbox(
-                            value: _selectedSetoran.contains(setoran),
-                            onChanged: (value) {
-                              setState(() {
-                                if (value == true) {
-                                _selectedSetoran.add(setoran);
-                                } else {
-                                _selectedSetoran.remove(setoran);
-                                }
-                              });
-                            },
-                          ),
-                        ],
-                      ),
+                  Text(
+                    'Pilih Semua (${_filteredSetoranList.length} item)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[700],
                     ),
                   ),
-                );
-              },
+                ],
+              ),
+            ),
+
+          // Selection Summary
+          if (_selectedSetoranToSave.isNotEmpty || _selectedSetoranToCancel.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_selectedSetoranToSave.isNotEmpty)
+                    Text(
+                      'Dipilih untuk disimpan: ${_selectedSetoranToSave.length} item',
+                      style: TextStyle(
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                    ),
+                  if (_selectedSetoranToCancel.isNotEmpty)
+                    Text(
+                      'Dipilih untuk dibatalkan: ${_selectedSetoranToCancel.length} item',
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+          // Setoran List
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadData,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _filteredSetoranList.length,
+                itemBuilder: (context, index) {
+                  final setoran = _filteredSetoranList[index];
+                  final isSelected = _isSelected(setoran);
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: isSelected
+                          ? BorderSide(
+                        color: setoran.sudahSetor ? Colors.red : Colors.green,
+                        width: 2,
+                      )
+                          : BorderSide.none,
+                    ),
+                    child: InkWell(
+                      onTap: () => _toggleSelection(setoran),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    setoran.nama,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    setoran.label,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  if (setoran.sudahSetor && setoran.infoSetoran != null) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Disahkan: ${setoran.infoSetoran!.dosenYangMengesahkan.nama}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.green[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Tanggal: ${setoran.infoSetoran!.tglSetoran}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: setoran.sudahSetor
+                                        ? Colors.green.withOpacity(0.1)
+                                        : Colors.orange.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    setoran.sudahSetor ? 'Sudah Setor' : 'Belum Setor',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: setoran.sudahSetor ? Colors.green : Colors.orange,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Checkbox(
+                                  value: isSelected,
+                                  onChanged: (value) => _toggleSelection(setoran),
+                                  activeColor: setoran.sudahSetor ? Colors.red : Colors.green,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
 
           // Action Buttons
-          Padding(
+          Container(
             padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
             child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              ElevatedButton(
-                onPressed: _simpanSetoran,
-                style: ElevatedButton.styleFrom(
-                backgroundColor: Constants.primaryColor,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                ),
-                child: const Text(
-                    'Simpan Setoran',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _selectedSetoranToSave.isEmpty ? null : _simpanSetoran,
+                    icon: const Icon(Icons.save, color: Colors.white),
+                    label: Text(
+                      'Simpan (${_selectedSetoranToSave.length})',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _selectedSetoranToSave.isEmpty
+                          ? Colors.grey
+                          : Constants.primaryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-                ElevatedButton(
-                  onPressed: () {
-                  _batalkanSetoran(_selectedSetoran);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
-                  child: const Text(
-                      'Batalkan Setoran',
-                    style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _selectedSetoranToCancel.isEmpty ? null : _batalkanSetoran,
+                    icon: const Icon(Icons.cancel, color: Colors.white),
+                    label: Text(
+                      'Batalkan (${_selectedSetoranToCancel.length})',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _selectedSetoranToCancel.isEmpty
+                          ? Colors.grey
+                          : Colors.red,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
               ],
