@@ -35,8 +35,12 @@ dependencies:
   shared_preferences: ^2.5.3
   jwt_decoder: ^2.0.1
   provider: ^6.1.5
+  path_provider: ^2.0.14
+  open_filex: ^4.7.0
   intl: ^0.20.2
   flutter_dotenv: ^5.2.1
+  crypto: ^3.0.2
+  dio: ^5.3.2
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
 dev_dependencies:
