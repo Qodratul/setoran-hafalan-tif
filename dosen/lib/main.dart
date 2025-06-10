@@ -19,8 +19,8 @@ void main() async {
   final String? token = prefs.getString('token');
 
   await dotenv.load(fileName: ".env");
-  debugPrint(dotenv.get('baseUrl', fallback: 'null'));
-  debugPrint (dotenv.get('empowerBaseUrl', fallback: 'null'));
+  debugPrint(dotenv.env['BASE_URL'] ?? 'null');
+  debugPrint(dotenv.env['EMPOWER_BASE_URL'] ?? 'null');
   runApp(MyApp(token: token));
 }
 
@@ -51,6 +51,10 @@ class MyApp extends StatelessWidget {
             bodyLarge: TextStyle(fontSize: 16, color: Colors.white),
           ),
         ),
+        routes: {
+          '/login': (context) => const LoginScreen(),
+          '/dashboard': (context) => const DashboardScreen(),
+        },
         home: token != null ? const DashboardScreen() : const LoginScreen(),
       ),
     );
