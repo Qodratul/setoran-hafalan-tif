@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../models/setoran_model.dart';
@@ -28,7 +31,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   String _searchQuery = '';
   List<SurahModel> _filteredSurahs = [];
 
-  // Text editing controller untuk search
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -36,6 +38,13 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     super.initState();
     _initializeTabController();
     _initializeAnimations();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authService = context.read<AuthService>();
+      authService.setContext(context);
+      _checkTokenStatus(authService);
+    });
+
     _loadSetoranData();
   }
 
@@ -45,7 +54,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
 
   void _initializeAnimations() {
-    // Animation untuk progress bar
     _progressAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -58,7 +66,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       curve: Curves.easeInOutCubic,
     ));
 
-    // Animation untuk pulse effect
     _pulseAnimationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -71,7 +78,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       curve: Curves.easeInOut,
     ));
 
-    // Start pulse animation
     _pulseAnimationController.repeat(reverse: true);
   }
 
@@ -84,6 +90,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   @override
   void dispose() {
+    final authService = context.read<AuthService>();
+    authService.clearContext();
+
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     _searchController.dispose();
@@ -99,6 +108,16 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
     try {
       final authService = context.read<AuthService>();
+      final hasValidToken = await authService.ensureValidToken(showDialog: true);
+
+      if (!hasValidToken) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showErrorSnackBar('Sesi tidak valid. Silakan login ulang.');
+        }
+        return;
+      }
+
       final setoranService = SetoranService(authService);
       final data = await setoranService.getSetoranSaya();
 
@@ -109,7 +128,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           _setoranData = data;
         });
         _filterSurahs();
-        // Start progress animation setelah data dimuat
         _progressAnimationController.forward();
       } else {
         _showErrorSnackBar('Gagal memuat data setoran');
@@ -132,6 +150,16 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
     try {
       final authService = context.read<AuthService>();
+      final hasValidToken = await authService.ensureValidToken(showDialog: false);
+
+      if (!hasValidToken) {
+        if (mounted) {
+          setState(() => _isRefreshing = false);
+          _showErrorSnackBar('Sesi tidak valid untuk refresh data');
+        }
+        return;
+      }
+
       final setoranService = SetoranService(authService);
       final data = await setoranService.getSetoranSaya();
 
@@ -142,7 +170,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           _setoranData = data;
         });
         _filterSurahs();
-        // Reset dan restart animation untuk refresh
         _progressAnimationController.reset();
         _progressAnimationController.forward();
         _showSuccessSnackBar('Data berhasil diperbarui');
@@ -165,7 +192,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
     List<SurahModel> allSurahs = _setoranData!.setoran.detail;
 
-    // Filter berdasarkan search query
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       allSurahs = allSurahs.where((surah) =>
@@ -174,7 +200,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       ).toList();
     }
 
-    // Filter berdasarkan tab yang aktif
     List<SurahModel> filteredByTab;
     switch (_tabController.index) {
       case 0: // All Surahs
@@ -183,7 +208,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       case 1: // Belum Disetor
         filteredByTab = allSurahs.where((surah) => !surah.sudahSetor).toList();
         break;
-      case 2: // Sudah Disetor
+      case 2:
         filteredByTab = allSurahs.where((surah) => surah.sudahSetor).toList();
         break;
       default:
@@ -207,6 +232,10 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   void _clearSearch() {
     _searchController.clear();
     _onSearchChanged('');
+  }
+
+  Future<void> _checkTokenStatus(AuthService authService) async {
+    await authService.ensureValidToken(showDialog: true);
   }
 
   Future<void> _logout() async {
@@ -282,6 +311,27 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         ),
       );
     }
+  }
+
+  // Helper methods for user initials (similar to profile_screen.dart)
+  String _cleanName(String name) {
+    return name.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  String _getInitials(String name) {
+    if (name.isEmpty) {
+      return '??';
+    }
+
+    List<String> names = name.split(' ');
+    String initials = '';
+    if (names.isNotEmpty) {
+      initials += names[0][0];
+    }
+    if (names.length > 1) {
+      initials += names[1][0];
+    }
+    return initials.toUpperCase();
   }
 
   void _showSurahDetails(SurahModel surah) {
@@ -378,23 +428,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                               ],
                             ),
                           ),
-                          // Close button
-                          // Container(
-                          //   decoration: BoxDecoration(
-                          //     color: Colors.white.withOpacity(0.2),
-                          //     borderRadius: BorderRadius.circular(8),
-                          //   ),
-                          //   child: IconButton(
-                          //     onPressed: () => Navigator.pop(context),
-                          //     icon: const Icon(
-                          //       Icons.close,
-                          //       color: Colors.white,
-                          //       size: 20,
-                          //     ),
-                          //     padding: const EdgeInsets.all(8),
-                          //     constraints: const BoxConstraints(),
-                          //   ),
-                          // ),
                         ],
                       ),
                     ),
@@ -579,44 +612,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header dengan icon
-          // Container(
-          //   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          //   decoration: BoxDecoration(
-          //     gradient: LinearGradient(
-          //       colors: [Colors.green.shade400, Colors.green.shade600],
-          //     ),
-          //     borderRadius: BorderRadius.circular(12),
-          //     boxShadow: [
-          //       BoxShadow(
-          //         color: Colors.green.withOpacity(0.3),
-          //         blurRadius: 8,
-          //         offset: const Offset(0, 2),
-          //       ),
-          //     ],
-          //   ),
-          //   child: Row(
-          //     mainAxisAlignment: MainAxisAlignment.center,
-          //     children: [
-          //       const Icon(
-          //         Icons.check_circle_outline,
-          //         color: Colors.white,
-          //         size: 24,
-          //       ),
-          //       const SizedBox(width: 8),
-          //       Text(
-          //         'Info Setoran Surah',
-          //         style: const TextStyle(
-          //           color: Colors.white,
-          //           fontSize: 18,
-          //           fontWeight: FontWeight.bold,
-          //         ),
-          //       ),
-          //     ],
-          //   ),
-          // ),
-          // const SizedBox(height: 20),
-
           // Detail rows
           _buildDetailRow(
             'Tanggal Setoran',
@@ -725,6 +720,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           child: Column(
             children: [
               _buildHeader(),
+              _buildSessionStatusIndicator(),
               _buildMainContent(),
             ],
           ),
@@ -778,15 +774,46 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
 
   Widget _buildProfileAvatar() {
+    final userInfo = _setoranData?.info;
+    String displayName = userInfo?.nama ?? 'Mahasiswa';
+    String cleanedName = _cleanName(displayName);
+    String initials = _getInitials(cleanedName);
+
     return GestureDetector(
       onTap: _navigateToProfile,
-      child: const CircleAvatar(
-        radius: 30,
-        backgroundColor: Colors.white,
-        child: Icon(
-          Icons.person,
-          size: 40,
-          color: Constants.primaryColor,
+      child: Hero(
+        tag: 'profile_avatar_dashboard',
+        child: Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 2,
+            ),
+          ),
+          child: CircleAvatar(
+            radius: 30,
+            backgroundColor: Constants.primaryColor,
+            child: Text(
+              initials,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -794,9 +821,58 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   Widget _buildPrintButton() {
     return ElevatedButton.icon(
-      onPressed: () {
-        // TODO: Implementasi cetak kartu
-        _showErrorSnackBar('Fitur cetak kartu belum tersedia');
+      onPressed: () async {
+        if (_setoranData != null) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const AlertDialog(
+              content: Row(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 16),
+                  Text('Mengunduh Kartu Murajaah...'),
+                ],
+              ),
+            ),
+          );
+
+          try {
+            final authService = context.read<AuthService>();
+            final setoranService = SetoranService(authService);
+            final result = await setoranService.downloadKartuMurajaah();
+
+            if (mounted) Navigator.of(context).pop();
+
+            if (result['success'] == true) {
+              final filePath = result['filePath'];
+              final fileName = result['fileName'];
+
+              if (filePath != null && await File(filePath).exists()) {
+                final openResult = await OpenFilex.open(filePath);
+
+                if (openResult.type == ResultType.done) {
+                  _showSuccessSnackBar(
+                      'Kartu Murajaah berhasil diunduh${fileName != null ? ': $fileName' : ''}'
+                  );
+                } else if (openResult.type == ResultType.noAppToOpen) {
+                  _showErrorSnackBar('Tidak ada aplikasi untuk membuka file PDF');
+                } else {
+                  _showSuccessSnackBar('File berhasil diunduh ke: $filePath');
+                }
+              } else {
+                _showErrorSnackBar('File kartu tidak ditemukan setelah download');
+              }
+            } else {
+              _showErrorSnackBar('Gagal mengunduh Kartu Murajaah');
+            }
+          } catch (e) {
+            if (mounted) Navigator.of(context).pop();
+            _showErrorSnackBar('Error: $e');
+          }
+        } else {
+          _showErrorSnackBar('Data setoran belum tersedia');
+        }
       },
       icon: const Icon(Icons.print),
       label: const Text('Cetak Kartu'),
@@ -812,7 +888,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     return IconButton(
       onPressed: _logout,
       icon: Image.asset(
-        'assets/images/out.png',
+        'assets/images/out.webp',
         width: 24,
         height: 24,
         errorBuilder: (context, error, stackTrace) {
@@ -901,7 +977,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Progress Bar dengan animasi
             Container(
               height: 6,
               decoration: BoxDecoration(
@@ -925,7 +1000,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                       height: double.infinity,
                       color: Colors.white.withOpacity(0.2),
                     ),
-                    // Progress fill dengan gradient
                     FractionallySizedBox(
                       widthFactor: (progress / 100) * _progressAnimation.value,
                       child: Container(
@@ -974,11 +1048,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
             const SizedBox(height: 10),
 
-            // Progress info dengan animasi
             Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                // Progress percentage
                 AnimatedBuilder(
                   animation: _progressAnimation,
                   builder: (context, child) {
@@ -989,7 +1061,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                           horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        //borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: progressColor.withOpacity(
                             0.3)),
                       ),
@@ -1015,14 +1086,14 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                     );
                   },
                 ),
+
                 const SizedBox(width: 6),
-                // Progress count
+
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
-                    //borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.white.withOpacity(0.3)),
                   ),
                   child: Row(
@@ -1057,83 +1128,59 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
             const SizedBox(height: 8),
 
-            // Progress message
-            //_buildProgressMessage(progress),
           ],
         );
       },
     );
   }
 
-  // Opsional
-  // Widget _buildProgressMessage(double progress) {
-  //   String message;
-  //   Color messageColor;
-  //   IconData messageIcon;
-  //
-  //   if (progress == 0) {
-  //     message = "Yuk mulai setoran pertama!";
-  //     messageColor = Colors.red.shade300;
-  //     messageIcon = Icons.play_arrow;
-  //   } else if (progress < 25) {
-  //     message = "Semangat! Terus lanjutkan!";
-  //     messageColor = Colors.orange.shade300;
-  //     messageIcon = Icons.trending_up;
-  //   } else if (progress < 50) {
-  //     message = "Bagus! Sudah seperempat jalan!";
-  //     messageColor = Colors.yellow.shade300;
-  //     messageIcon = Icons.star_half;
-  //   } else if (progress < 75) {
-  //     message = "Hebat! Sudah setengah perjalanan!";
-  //     messageColor = Colors.blue.shade300;
-  //     messageIcon = Icons.favorite;
-  //   } else if (progress < 100) {
-  //     message = "Luar biasa! Hampir selesai!";
-  //     messageColor = Colors.lightGreen.shade300;
-  //     messageIcon = Icons.emoji_events;
-  //   } else {
-  //     message = "Alhamdulillah! Setoran lengkap!";
-  //     messageColor = Colors.green.shade300;
-  //     messageIcon = Icons.celebration;
-  //   }
-  //
-  //   return AnimatedBuilder(
-  //     animation: _pulseAnimationController,
-  //     builder: (context, child) {
-  //       return Transform.scale(
-  //         scale: progress >= 100 ? _pulseAnimation.value : 1.0,
-  //         child: Container(
-  //           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-  //           child: Row(
-  //             children: [
-  //               Icon(
-  //                 messageIcon,
-  //                 color: messageColor,
-  //                 size: 16,
-  //               ),
-  //               const SizedBox(width: 6),
-  //               Text(
-  //                 message,
-  //                 style: TextStyle(
-  //                   fontSize: 13,
-  //                   color: messageColor,
-  //                   fontWeight: FontWeight.w600,
-  //                   fontStyle: FontStyle.italic,
-  //                 ),
-  //               ),
-  //             ],
-  //           ),
-  //         ),
-  //       );
-  //     },
-  //   );
-  // }
+  Widget _buildSessionStatusIndicator() {
+    return Consumer<AuthService>(
+      builder: (context, authService, child) {
+        if (authService.willExpireSoon) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade100,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.shade300),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.access_time, color: Colors.orange.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Sesi akan berakhir dalam 5 menit',
+                    style: TextStyle(
+                      color: Colors.orange.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    await authService.handleTokenRefresh(showDialog: true);
+                  },
+                  child: Text(
+                    'Perpanjang',
+                    style: TextStyle(color: Colors.orange.shade700),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
 
   Widget _buildProgressPlaceholder() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Skeleton loading untuk progress bar
         Container(
           height: 12,
           decoration: BoxDecoration(
@@ -1217,7 +1264,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       height: 147,
       decoration: const BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/images/orang.png'),
+          image: AssetImage('assets/images/orang.webp'),
           fit: BoxFit.cover,
         ),
       ),
@@ -1260,6 +1307,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           borderRadius: BorderRadius.circular(25),
         ),
         child: TextField(
+          style: const TextStyle(
+            color: Colors.black,
+          ),
           controller: _searchController,
           onChanged: _onSearchChanged,
           decoration: InputDecoration(

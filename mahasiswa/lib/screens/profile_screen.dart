@@ -198,6 +198,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildProfileImage() {
+    String cleanedName = _cleanName(widget.user.nama);
+    String initials = _getInitials(cleanedName);
     return AnimatedBuilder(
       animation: _profileImageController,
       builder: (context, child) {
@@ -228,28 +230,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                   width: 3,
                 ),
               ),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/Ellipse2.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.white.withOpacity(0.3),
-                            Colors.white.withOpacity(0.1),
-                          ],
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.person,
-                        size: 80,
-                        color: Colors.white,
-                      ),
-                    );
-                  },
+              child: CircleAvatar(
+                radius: 80,
+                backgroundColor: Colors.teal,
+                child: Text(
+                  initials,
+                  style: const TextStyle(fontSize: 40, color: Colors.white),
                 ),
               ),
             ),
@@ -257,6 +243,26 @@ class _ProfileScreenState extends State<ProfileScreen>
         );
       },
     );
+  }
+
+  String _cleanName(String name) {
+    return name.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  String _getInitials(String name) {
+    if (name.isEmpty) {
+      return '??';
+    }
+
+    List<String> names = name.split(' ');
+    String initials = '';
+    if (names.isNotEmpty) {
+      initials += names[0][0];
+    }
+    if (names.length > 1) {
+      initials += names[1][0];
+    }
+    return initials.toUpperCase();
   }
 
   Widget _buildUserInfoCard() {
@@ -313,7 +319,6 @@ class _ProfileScreenState extends State<ProfileScreen>
 
                   const SizedBox(height: 20),
 
-                  // Info items with icons
                   ..._buildInfoItems(),
                 ],
               ),
