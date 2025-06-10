@@ -1,0 +1,55 @@
+plugins {
+    id 'com.android.application'
+    id 'kotlin-android'
+    id 'dev.flutter.flutter-gradle-plugin'
+}
+
+android {
+    namespace 'com.kelompok1.dosen'
+    compileSdkVersion 35
+    ndkVersion "27.0.12077973"
+
+    defaultConfig {
+        applicationId "com.kelompok1.dosen"
+        minSdkVersion 30
+        targetSdkVersion 35
+        versionCode 1
+        versionName "1.0"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+
+    signingConfigs {
+        release {
+            def keystoreFile = rootProject.file("key.properties")
+            if (keystoreFile.exists()) {
+                def props = new Properties()
+                keystoreFile.withInputStream { props.load(it) }
+
+                keyAlias props.getProperty('keyAlias')
+                keyPassword props.getProperty('keyPassword')
+                storeFile file(props.getProperty('storeFile'))
+                storePassword props.getProperty('storePassword')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            shrinkResources false
+            minifyEnabled false
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
