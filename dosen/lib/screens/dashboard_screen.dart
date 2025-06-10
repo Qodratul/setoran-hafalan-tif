@@ -23,31 +23,119 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _selectedAngkatan = 'Semua';
   final TextEditingController _searchController = TextEditingController();
 
+  bool _isDisposed = false;
+  AuthService? _authService;
+
   @override
   void initState() {
     super.initState();
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_isDisposed) {
+        _initializeScreen();
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _authService = Provider.of<AuthService>(context, listen: false);
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _searchController.dispose();
+
+    if (_authService != null) {
+      _authService!.clearContext();
+    }
+
+    super.dispose();
+  }
+
+  Future<void> _initializeScreen() async {
+    if (_isDisposed) return;
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      authService.setContext(context);
+      await _checkTokenStatus(authService);
+      await _loadData();
+    } catch (e) {
+      if (!_isDisposed && mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    if (_isDisposed || !mounted) return;
 
-    final data = await _dosenService.getPASaya();
-    if (data != null && data['response'] == true) {
-    setState(() {
-    _dosenData = data['data'];
-    _mahasiswaList = (data['data']['info_mahasiswa_pa']['daftar_mahasiswa'] as List)
-        .map((e) => Mahasiswa.fromJson(e))
-        .toList();
-    _filteredMahasiswaList = _mahasiswaList;
-    _isLoading = false;
-    });
-    } else {
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+
+      if (!authService.isAuthenticated) {
+        if (mounted && !_isDisposed) {
+          setState(() => _isLoading = false);
+          _showErrorSnackBar('Sesi tidak valid. Silakan login ulang.');
+          Navigator.of(context).pushReplacementNamed('/login');
+        }
+        return;
+      }
+
+      final hasValidToken = await _ensureValidTokenSafely(authService);
+
+      if (!hasValidToken) {
+        if (mounted && !_isDisposed) {
+          setState(() => _isLoading = false);
+          _showErrorSnackBar('Sesi tidak valid. Silakan login ulang.');
+        }
+        return;
+      }
+
+      final data = await _dosenService.getPASaya();
+      if (data != null && data['response'] == true) {
+        if (mounted && !_isDisposed) {
+          setState(() {
+            _dosenData = data['data'];
+            _mahasiswaList = (data['data']['info_mahasiswa_pa']['daftar_mahasiswa'] as List)
+                .map((e) => Mahasiswa.fromJson(e))
+                .toList();
+            _filteredMahasiswaList = _mahasiswaList;
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted && !_isDisposed) {
+          setState(() => _isLoading = false);
+          _showErrorSnackBar('Gagal memuat data. Silakan coba lagi.');
+        }
+      }
+    } catch (e) {
+      if (mounted && !_isDisposed) {
+        setState(() => _isLoading = false);
+        _showErrorSnackBar('Terjadi kesalahan saat memuat data.');
+      }
+    }
+  }
+
+  Future<bool> _ensureValidTokenSafely(AuthService authService) async {
+    try {
+      return await authService.ensureValidToken(showDialog: false);
+    } catch (e) {
+      debugPrint('Error ensuring valid token: $e');
+      return false;
     }
   }
 
   void _filterMahasiswa() {
+    if (_isDisposed || !mounted) return;
+
     setState(() {
       _filteredMahasiswaList = _mahasiswaList.where((mahasiswa) {
         final matchesSearch = mahasiswa.nama.toLowerCase().contains(_searchController.text.toLowerCase()) ||
@@ -63,9 +151,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return ['Semua', ...angkatanSet];
   }
 
+  Future<void> _checkTokenStatus(AuthService authService) async {
+    try {
+      await _ensureValidTokenSafely(authService);
+    } catch (e) {
+      debugPrint('Error checking token status: $e');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (_isDisposed || !mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context);
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: SafeArea(
@@ -138,11 +245,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         controller: _searchController,
                         style: const TextStyle(color: Colors.black),
                         onChanged: (_) => _filterMahasiswa(),
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: 'Cari mahasiswa...',
-                          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                          prefixIcon: Icon(Icons.search, color: Colors.grey),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         ),
                       ),
                     ),
@@ -150,6 +257,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
             ),
+
+            _buildSessionStatusIndicator(),
 
             // Filter Angkatan
             Container(
@@ -166,10 +275,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       label: Text(angkatan),
                       selected: isSelected,
                       onSelected: (selected) {
-                        setState(() {
-                          _selectedAngkatan = angkatan;
-                          _filterMahasiswa();
-                        });
+                        if (!_isDisposed && mounted) {
+                          setState(() {
+                            _selectedAngkatan = angkatan;
+                            _filterMahasiswa();
+                          });
+                        }
                       },
                       backgroundColor: Colors.white,
                       selectedColor: Constants.primaryColor,
@@ -221,8 +332,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             // Mahasiswa List
             Expanded(
               child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
                 onRefresh: _loadData,
                 child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -387,7 +498,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: mahasiswa.infoSetoran.terakhirSetor == 'Belum ada'
-                      ? Colors.red.withOpacity(0.1)
+                          ? Colors.red.withOpacity(0.1)
                           : Colors.green.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -396,7 +507,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         color: mahasiswa.infoSetoran.terakhirSetor == 'Belum ada'
-                        ? Colors.red
+                            ? Colors.red
                             : Colors.green,
                         fontWeight: FontWeight.w500,
                       ),
@@ -411,7 +522,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildSessionStatusIndicator() {
+    return Consumer<AuthService>(
+      builder: (context, authService, child) {
+        if (authService.willExpireSoon) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade100,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.shade300),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.access_time, color: Colors.orange.shade700, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Sesi akan berakhir dalam 5 menit',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    if (!_isDisposed && mounted) {
+                      try {
+                        await authService.handleTokenRefresh(showDialog: true);
+                      } catch (e) {
+                        debugPrint('Error refreshing token: $e');
+                      }
+                    }
+                  },
+                  child: const Text(
+                    'Perpanjang',
+                    style: TextStyle(color: Colors.orange),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
   void _showLogoutConfirmationDialog() {
+    if (_isDisposed || !mounted) return;
+
     showDialog(
         context: context,
         builder: (context) {
@@ -427,21 +589,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               TextButton(
                 onPressed: () async {
-                  await Provider.of<AuthService>(context, listen: false).logout();
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
+                  Navigator.of(context).pop();
+                  try {
+                    if (_authService != null) {
+                      await _authService!.logout();
+                    }
+                    if (mounted && !_isDisposed) {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      );
+                    }
+                  } catch (e) {
+                    debugPrint('Error during logout: $e');
+                  }
                 },
                 child: const Text('Keluar'),
               ),
             ],
           );
         });
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 }

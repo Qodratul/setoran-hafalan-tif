@@ -25,6 +25,15 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authService = context.read<AuthService>();
+      authService.clearContext();
+    });
+  }
+
   void _togglePasswordVisibility() {
     setState(() {
       _obscurePassword = !_obscurePassword;
@@ -37,24 +46,32 @@ class _LoginScreenState extends State<LoginScreen> {
         _errorMessage = null;
       });
 
-      final email = _emailController.text;
+      final email = _emailController.text.trim();
       final password = _passwordController.text;
       final authService = Provider.of<AuthService>(context, listen: false);
+
+      authService.setContext(context);
+
 
       final success = await authService.login(email, password);
 
       if (success) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
-        );
+        if (mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/dashboard',
+                (route) => false,
+          );
+        }
       } else {
-        setState(() {
-          if (authService.token == null) {
-            _errorMessage = 'Login gagal. Periksa email dan password Anda.';
-          } else {
-            _errorMessage = 'Akses ditolak. Hanya dosen yang dapat menggunakan aplikasi ini.';
-          }
-        });
+        if (mounted) {
+          setState(() {
+            if (authService.token == null) {
+              _errorMessage = 'Login gagal. Periksa email dan password Anda.';
+            } else {
+              _errorMessage = 'Akses ditolak. Hanya dosen yang dapat menggunakan aplikasi ini.';
+            }
+          });
+        }
       }
     }
   }

@@ -2,8 +2,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
-import '../models/mahasiswa_model.dart';
-import '../models/dosen_model.dart';
 
 class DosenService {
   Future<Map<String, dynamic>?> getPASaya() async {
@@ -71,8 +69,7 @@ class DosenService {
       },
       body: json.encode(body),
     );
-
-    return response.statusCode == 200;
+    return response.statusCode == 201;
     } catch (e) {
       print('Error saving setoran: $e');
       return false;
@@ -94,7 +91,6 @@ class DosenService {
         'data_setoran': dataSetoran,
       }),
     );
-
     return response.statusCode == 200;
     } catch (e) {
       print('Error deleting setoran: $e');
