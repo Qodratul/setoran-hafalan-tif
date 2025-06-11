@@ -56,12 +56,9 @@ class _LoginScreenState extends State<LoginScreen> {
       final success = await authService.login(email, password);
 
       if (success) {
-        if (mounted) {
-          Navigator.of(context).pushNamedAndRemoveUntil(
-            '/dashboard',
-                (route) => false,
-          );
-        }
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
       } else {
         if (mounted) {
           setState(() {
