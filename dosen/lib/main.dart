@@ -15,28 +15,35 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  final prefs = await SharedPreferences.getInstance();
-  final String? token = prefs.getString('token');
-
   await dotenv.load(fileName: ".env");
+
+  final authService = AuthService();
+  await authService.loadTokenFromStorage();
+
+  final Widget initialScreen = authService.isAuthenticated ? const DashboardScreen() : const LoginScreen();
+
   debugPrint(dotenv.env['BASE_URL'] ?? 'null');
   debugPrint(dotenv.env['EMPOWER_BASE_URL'] ?? 'null');
-  runApp(MyApp(token: token));
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthService>.value(value: authService),
+      ],
+      child: MyApp(initialScreen: initialScreen),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  final String? token;
+  final Widget initialScreen;
 
-  const MyApp({Key? key, this.token}) : super(key: key);
+  const MyApp({Key? key, required this.initialScreen}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthService()),
-      ],
-      child: MaterialApp(
-        title: 'Muroja\'ah Juz 30',
+    return MaterialApp(
+        title: 'IntegraTIF (Dosen)',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           primaryColor: const Color(0xFF006666),
@@ -55,8 +62,7 @@ class MyApp extends StatelessWidget {
           '/login': (context) => const LoginScreen(),
           '/dashboard': (context) => const DashboardScreen(),
         },
-        home: token != null ? const DashboardScreen() : const LoginScreen(),
-      ),
-    );
+      home: initialScreen,
+      );
   }
 }

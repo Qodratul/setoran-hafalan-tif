@@ -626,7 +626,7 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
 
           if (_selectedFilter == "Sudah di-muroja'ah" || _selectedFilter == "Belum di-muroja'ah")
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
                 children: [
                   Checkbox(
@@ -637,7 +637,7 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
                     activeColor: Constants.primaryColor,
                   ),
                   Text(
-                    'Pilih Semua ${_selectedFilter == "Sudah di-muroja'ah" ? "Sudah di-muroja'ah" : "Belum di-muroja'ah"}',
+                    'Pilih semua yang ${_selectedFilter == "sudah di-muroja'ah" ? "sudah di-muroja'ah" : "belum di-muroja'ah"}',
                     style: const TextStyle(fontSize: 14),
                   ),
                 ],
@@ -647,7 +647,9 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
           Expanded(
             child: RefreshIndicator(
               onRefresh: _loadData,
-              child: ListView.builder(
+              child: _filteredSetoranList.isEmpty && !_isLoading
+                  ? _buildEmptyState()
+                  : ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: _filteredSetoranList.length,
                 itemBuilder: (context, index) {
@@ -774,6 +776,30 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
                 ],
               ),
               child: _buildActionButtons(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 80,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Tidak ada data ditemukan.',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],

@@ -117,7 +117,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       if (!hasValidToken) {
         if (mounted) {
           setState(() => _isLoading = false);
-          _showErrorSnackBar('Sesi tidak valid. Silakan login ulang.');
         }
         return;
       }
@@ -154,12 +153,11 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
     try {
       final authService = context.read<AuthService>();
-      final hasValidToken = await authService.ensureValidToken(showDialog: false);
+      final hasValidToken = await authService.ensureValidToken(showDialog: true);
 
       if (!hasValidToken) {
         if (mounted) {
           setState(() => _isRefreshing = false);
-          _showErrorSnackBar('Sesi tidak valid untuk refresh data');
         }
         return;
       }

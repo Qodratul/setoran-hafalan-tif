@@ -14,7 +14,7 @@ class DashboardScreen extends StatefulWidget {
   _DashboardScreenState createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with TickerProviderStateMixin {
   final DosenService _dosenService = DosenService();
   Map<String, dynamic>? _dosenData;
   List<Mahasiswa> _mahasiswaList = [];
@@ -26,14 +26,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isDisposed = false;
   AuthService? _authService;
 
+  // Animations for progress indicator (similar to student app)
+  late AnimationController _pulseAnimationController;
+  late Animation<double> _pulseAnimation;
+
   @override
   void initState() {
     super.initState();
+    _initializeAnimations(); // Initialize animations
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isDisposed) {
         _initializeScreen();
       }
     });
+  }
+
+  void _initializeAnimations() {
+    _pulseAnimationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).animate(CurvedAnimation(
+      parent: _pulseAnimationController,
+      curve: Curves.easeInOut,
+    ));
+    _pulseAnimationController.repeat(reverse: true);
   }
 
   @override
@@ -46,6 +66,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _isDisposed = true;
     _searchController.dispose();
+    _pulseAnimationController.dispose(); // Dispose animation controller
 
     if (_authService != null) {
       _authService!.clearContext();
@@ -70,30 +91,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadData() async {
-    if (_isDisposed || !mounted) return;
+    if (!mounted) return;
 
-    if (mounted) {
-      setState(() => _isLoading = true);
-    }
+    setState(() => _isLoading = true);
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
-
-      if (!authService.isAuthenticated) {
-        if (mounted && !_isDisposed) {
-          setState(() => _isLoading = false);
-          _showErrorSnackBar('Sesi tidak valid. Silakan login ulang.');
-          Navigator.of(context).pushReplacementNamed('/login');
-        }
-        return;
-      }
-
-      final hasValidToken = await _ensureValidTokenSafely(authService);
+      final authService = context.read<AuthService>();
+      final hasValidToken = await authService.ensureValidToken(showDialog: true);
 
       if (!hasValidToken) {
-        if (mounted && !_isDisposed) {
+        if (mounted) {
           setState(() => _isLoading = false);
-          _showErrorSnackBar('Sesi tidak valid. Silakan login ulang.');
         }
         return;
       }
@@ -106,20 +114,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _mahasiswaList = (data['data']['info_mahasiswa_pa']['daftar_mahasiswa'] as List)
                 .map((e) => Mahasiswa.fromJson(e))
                 .toList();
-            _filteredMahasiswaList = _mahasiswaList;
+            _filterMahasiswa();
             _isLoading = false;
           });
         }
       } else {
         if (mounted && !_isDisposed) {
           setState(() => _isLoading = false);
-          _showErrorSnackBar('Gagal memuat data. Silakan coba lagi.');
         }
       }
     } catch (e) {
       if (mounted && !_isDisposed) {
         setState(() => _isLoading = false);
-        _showErrorSnackBar('Terjadi kesalahan saat memuat data.');
       }
     }
   }
@@ -147,28 +153,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   List<String> _getAngkatanList() {
-    final angkatanSet = _mahasiswaList.map((m) => m.angkatan).toSet();
+    final angkatanSet = _mahasiswaList.map((m) => m.angkatan).toSet().toList();
+    angkatanSet.sort();
     return ['Semua', ...angkatanSet];
   }
 
   Future<void> _checkTokenStatus(AuthService authService) async {
     try {
-      await _ensureValidTokenSafely(authService);
+      await authService.ensureValidToken(showDialog: true);
     } catch (e) {
       debugPrint('Error checking token status: $e');
     }
-  }
-
-  void _showErrorSnackBar(String message) {
-    if (_isDisposed || !mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
   }
 
   @override
@@ -224,10 +219,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 fontSize: 16,
                               ),
                             ),
+                            if (_dosenData != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: Colors.white.withOpacity(0.4)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.people, color: Colors.white, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Total Mahasiswa: ${_mahasiswaList.length}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                         IconButton(
-                          icon: const Icon(Icons.logout, color: Colors.red),
+                          icon: const Icon(
+                              Icons.logout,
+                              color: Colors.red,
+                              size: 30
+                          ),
                           onPressed: () async {
                             _showLogoutConfirmationDialog();
                           },
@@ -294,30 +320,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
 
-            // Statistics Cards
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      'Total Mahasiswa',
-                      _mahasiswaList.length.toString(),
-                      Icons.people,
-                      Colors.blue,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             // Mahasiswa List
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? _buildLoadingState()
                   : RefreshIndicator(
                 onRefresh: _loadData,
-                child: ListView.builder(
+                child: _filteredMahasiswaList.isEmpty && !_isLoading
+                    ? _buildEmptyState()
+                    : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: _filteredMahasiswaList.length,
                   itemBuilder: (context, index) {
@@ -333,42 +344,89 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+  Widget _buildLoadingState() {
+    return Expanded(
+      child: Center(
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          shrinkWrap: true,
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedBuilder(
+                  animation: _pulseAnimationController,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _pulseAnimation.value,
+                      child: const Icon(
+                        Icons.hourglass_empty,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Memuat data mahasiswa...',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Mohon tunggu sebentar',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 30),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
+    );
+  }
+
+
+  Widget _buildEmptyState() {
+    return Expanded(
+      child: Center(
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          shrinkWrap: true,
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.inbox,
+                  size: 64,
+                  color: Colors.grey,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Tidak ada data mahasiswa',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Tarik ke bawah untuk memperbarui',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

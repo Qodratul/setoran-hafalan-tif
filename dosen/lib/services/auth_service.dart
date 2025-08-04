@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
+import '../widgets/auth_dialog.dart';
 
 class AuthService extends ChangeNotifier {
   String? _token;
@@ -12,6 +13,7 @@ class AuthService extends ChangeNotifier {
   String? _idToken;
   bool _isLoading = false;
   DateTime? _tokenExpiry;
+  DateTime? _refreshTokenExpiry;
   bool _isDosen = false;
 
   Timer? _tokenCheckTimer;
@@ -50,17 +52,14 @@ class AuthService extends ChangeNotifier {
 
   void _startTokenCheckTimer() {
     _stopTokenCheckTimer();
-
     _tokenCheckTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       _autoCheckTokenStatus();
     });
   }
 
   void _stopTokenCheckTimer() {
-    if (_tokenCheckTimer != null) {
-      _tokenCheckTimer!.cancel();
-      _tokenCheckTimer = null;
-    }
+    _tokenCheckTimer?.cancel();
+    _tokenCheckTimer = null;
   }
 
   Future<void> _autoCheckTokenStatus() async {
@@ -69,6 +68,7 @@ class AuthService extends ChangeNotifier {
     }
 
     try {
+      _isCheckingToken = true;
       if (isTokenExpired) {
         _dialogShown = true;
         await handleTokenRefresh(showDialog: true);
@@ -80,6 +80,11 @@ class AuthService extends ChangeNotifier {
       }
     } catch (e) {
       _dialogShown = false;
+      if (kDebugMode) {
+        print('Error during auto token check: $e');
+      }
+    } finally {
+      _isCheckingToken = false;
     }
   }
 
@@ -108,8 +113,8 @@ class AuthService extends ChangeNotifier {
         _token = data['access_token'];
         _refreshToken = data['refresh_token'];
         _idToken = data['id_token'];
-
         _tokenExpiry = DateTime.now().add(Duration(seconds: data['expires_in']));
+        _refreshTokenExpiry = DateTime.now().add(Duration(seconds: data['refresh_expires_in']));
 
         final isDosen = await _verifyDosen();
 
@@ -128,23 +133,170 @@ class AuthService extends ChangeNotifier {
         await prefs.setString('refreshToken', _refreshToken!);
         await prefs.setString('idToken', _idToken!);
         await prefs.setString('tokenExpiry', _tokenExpiry!.toIso8601String());
+        await prefs.setString('refreshTokenExpiry', _refreshTokenExpiry!.toIso8601String());
         await prefs.setBool('isDosen', true);
 
         _isDosen = true;
-        _isLoading = false;
         notifyListeners();
 
         return true;
       } else {
-        _isLoading = false;
         notifyListeners();
         return false;
       }
     } catch (e) {
+      if (kDebugMode) {
+        print('Login error: $e');
+      }
       _isLoading = false;
       notifyListeners();
       return false;
+    } finally {
+      _isLoading = false;
     }
+  }
+
+  Future<bool> _verifyDosen() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${Constants.baseUrl}/dosen/pa-saya'),
+        headers: {
+          'Authorization': 'Bearer $_token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['response'] == true && data['data'] != null;
+      }
+      return false;
+    } catch (e) {
+      print('Verify Dosen error: $e');
+      return false;
+    }
+  }
+
+  Future<void> loadTokenFromStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString('token');
+    _refreshToken = prefs.getString('refreshToken');
+    _idToken = prefs.getString('idToken');
+    String? expiryString = prefs.getString('tokenExpiry');
+    String? refreshExpiryString = prefs.getString('refreshTokenExpiry');
+
+    if (expiryString != null) {
+      _tokenExpiry = DateTime.parse(expiryString);
+    }
+    if (refreshExpiryString != null) {
+      _refreshTokenExpiry = DateTime.parse(refreshExpiryString);
+    }
+
+    _isDosen = prefs.getBool('isDosen') ?? false;
+    notifyListeners();
+  }
+
+  Future<bool> handleTokenRefresh({bool showDialog = true}) async {
+    if (_refreshTokenExpiry == null || DateTime.now().isAfter(_refreshTokenExpiry!)) {
+      if (_context != null && showDialog) {
+        if (Navigator.of(_context!).canPop()) {
+          Navigator.of(_context!).pop();
+        }
+        await AuthDialogs.showSessionExpiredDialog(_context!, canRefresh: false);
+      }
+      await logout();
+      return false;
+    }
+
+    if (isTokenExpired) {
+      if (_context != null && showDialog) {
+        if (Navigator.of(_context!).canPop()) {
+          Navigator.of(_context!).pop();
+        }
+        bool shouldRefresh = await AuthDialogs.showTokenExpiredDialog(_context!);
+        if (shouldRefresh) {
+          return await _performTokenRefresh();
+        } else {
+          await logout();
+          return false;
+        }
+      }
+      return await _performTokenRefresh();
+    }
+
+    if (willExpireSoon) {
+      if (_context != null && showDialog) {
+        if (Navigator.of(_context!).canPop()) {
+          Navigator.of(_context!).pop();
+        }
+        bool shouldRefresh = await AuthDialogs.showSessionExpiredDialog(_context!, canRefresh: true);
+        if (shouldRefresh) {
+          return await _performTokenRefresh();
+        } else {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  Future<bool> _performTokenRefresh() async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final response = await http.post(
+        Uri.parse(Constants.authUrl),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {
+          'client_id': Constants.clientId,
+          'client_secret': Constants.clientSecret,
+          'grant_type': 'refresh_token',
+          'refresh_token': _refreshToken!,
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Refresh token failed');
+      }
+
+      final data = json.decode(response.body);
+      _updateTokens(data);
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      if (kDebugMode) {
+        print('Error performing token refresh: $e');
+      }
+
+      if (_context != null) {
+        if (Navigator.of(_context!).canPop()) {
+          Navigator.of(_context!).pop();
+        }
+        await AuthDialogs.showSessionExpiredDialog(_context!, canRefresh: false);
+      }
+      await logout();
+      return false;
+    }
+  }
+
+  void _updateTokens(Map<String, dynamic> data) {
+    _token = data['access_token'];
+    _refreshToken = data['refresh_token'];
+    _tokenExpiry = DateTime.now().add(Duration(seconds: data['expires_in']));
+
+    _refreshTokenExpiry = DateTime.now().add(Duration(seconds: data['refresh_expires_in']));
+
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('token', _token!);
+      prefs.setString('refreshToken', _refreshToken!);
+      prefs.setString('tokenExpiry', _tokenExpiry!.toIso8601String());
+      prefs.setString('refreshTokenExpiry', _refreshTokenExpiry!.toIso8601String());
+    });
   }
 
   Future<bool> refreshToken() async {
@@ -152,10 +304,8 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<bool> ensureValidToken({bool showDialog = true}) async {
-    if (isTokenExpired) {
+    if (isTokenExpired || willExpireSoon) {
       return await handleTokenRefresh(showDialog: showDialog);
-    } else if (willExpireSoon && showDialog) {
-      return await handleTokenRefresh(showDialog: true);
     }
     return true;
   }
@@ -185,277 +335,27 @@ class AuthService extends ChangeNotifier {
         print('Logout error: $e');
       }
     } finally {
-      await clearStoredTokens();
-
-      if (_context != null) {
-        Navigator.of(_context!).pushNamedAndRemoveUntil(
-          '/login',
-              (route) => false,
-        );
-      }
-    }
-  }
-
-  Future<bool> _verifyDosen() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${Constants.baseUrl}/dosen/pa-saya'),
-        headers: {
-          'Authorization': 'Bearer $_token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final isValid = data['response'] == true && data['data'] != null;
-        return isValid;
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<void> loadTokenFromStorage() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      _token = prefs.getString('token');
-      _refreshToken = prefs.getString('refreshToken');
-      _idToken = prefs.getString('idToken');
-      _isDosen = prefs.getBool('isDosen') ?? false;
-
-      String? expiryString = prefs.getString('tokenExpiry');
-      if (expiryString != null) {
-        _tokenExpiry = DateTime.parse(expiryString);
-      }
-
-      if (_token != null && isTokenExpired) {
-        debugPrint('🔄 Token is expired, clearing...');
-        await clearStoredTokens();
-      }
-
-      notifyListeners();
-    } catch (e) {
-      await clearStoredTokens();
-    }
-  }
-
-  Future<void> clearStoredTokens() async {
-    try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('token');
       await prefs.remove('refreshToken');
       await prefs.remove('idToken');
       await prefs.remove('tokenExpiry');
+      await prefs.remove('refreshTokenExpiry');
       await prefs.remove('isDosen');
 
       _token = null;
       _refreshToken = null;
       _idToken = null;
       _tokenExpiry = null;
+      _refreshTokenExpiry = null;
       _isDosen = false;
-
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error clearing stored tokens: $e');
-    }
-  }
-
-  Future<bool> handleTokenRefresh({bool showDialog = true}) async {
-    if (_refreshToken == null) {
-      if (showDialog && _context != null) {
-        await _showSessionExpiredDialog(canRefresh: false);
-      }
-      return false;
-    }
-
-    if (showDialog && _context != null) {
-      final shouldRefresh = await _showSessionExpiredDialog(canRefresh: true);
-      if (!shouldRefresh) {
-        await logout();
-        return false;
-      }
-    }
-
-    return await _performTokenRefresh();
-  }
-
-  Future<bool> _performTokenRefresh() async {
-    try {
-      _isLoading = true;
       notifyListeners();
 
-      final prefs = await SharedPreferences.getInstance();
-      final oldRefreshToken = _refreshToken ?? prefs.getString('refreshToken');
-
-      if (oldRefreshToken == null) {
-        _isLoading = false;
-        notifyListeners();
-        return false;
+      if (_context != null) {
+        Navigator.of(_context!).popUntil((route) => route.isFirst);
+        Navigator.of(_context!).pushReplacementNamed('/login');
       }
-
-      final response = await http.post(
-        Uri.parse(Constants.authUrl),
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: {
-          'client_id': Constants.clientId,
-          'client_secret': Constants.clientSecret,
-          'grant_type': 'refresh_token',
-          'refresh_token': oldRefreshToken,
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        _token = data['access_token'];
-        _refreshToken = data['refresh_token'];
-        _idToken = data['id_token'];
-
-        _tokenExpiry = DateTime.now().add(Duration(seconds: data['expires_in']));
-
-        await prefs.setString('token', _token!);
-        await prefs.setString('refreshToken', _refreshToken!);
-        await prefs.setString('idToken', _idToken!);
-        await prefs.setString('tokenExpiry', _tokenExpiry!.toIso8601String());
-
-        _isLoading = false;
-        notifyListeners();
-
-        if (_context != null) {
-          ScaffoldMessenger.of(_context!).showSnackBar(
-            const SnackBar(
-              content: Text('Sesi berhasil diperpanjang'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-
-        return true;
-      } else {
-        _isLoading = false;
-        notifyListeners();
-
-        if (_context != null) {
-          await _showSessionExpiredDialog(canRefresh: false);
-        }
-        return false;
-      }
-    } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      return false;
     }
-  }
-
-  Future<bool> _showSessionExpiredDialog({required bool canRefresh}) async {
-    if (_context == null) return false;
-
-    return await showDialog<bool>(
-      context: _context!,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(
-                canRefresh ? Icons.access_time : Icons.error_outline,
-                color: canRefresh ? Colors.orange : Colors.red,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                canRefresh ? 'Sesi Akan Berakhir' : 'Sesi Berakhir',
-                style: TextStyle(
-                  color: canRefresh ? Colors.orange : Colors.red,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                canRefresh
-                    ? 'Sesi login Anda akan segera berakhir.'
-                    : 'Sesi login Anda telah berakhir.',
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 12),
-              if (canRefresh) ...[
-                const Text(
-                  'Apakah Anda ingin memperpanjang sesi?',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.blue.shade600, size: 20),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          'Pilih "Ya" untuk melanjutkan atau "Tidak" untuk logout.',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                const Text(
-                  'Silakan login kembali untuk melanjutkan.',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ],
-          ),
-          actions: [
-            if (canRefresh) ...[
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey.shade600,
-                ),
-                child: const Text('Tidak'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Constants.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Ya, Perpanjang'),
-              ),
-            ] else ...[
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop(false);
-                  logout();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Login Ulang'),
-              ),
-            ],
-          ],
-        );
-      },
-    ) ?? false;
   }
 
   @override

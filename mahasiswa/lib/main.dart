@@ -15,48 +15,54 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  final prefs = await SharedPreferences.getInstance();
-  final String? token = prefs.getString('token');
-
   await dotenv.load(fileName: ".env");
-  debugPrint(dotenv.get('baseUrl', fallback: 'null'));
-  debugPrint(dotenv.get('empowerBaseUrl', fallback: 'null'));
-  runApp(MyApp(token: token));
+
+  final authService = AuthService();
+  await authService.loadTokenFromStorage();
+
+  final Widget initialScreen = authService.isAuthenticated ? const DashboardScreen() : const LoginScreen();
+
+  debugPrint(dotenv.env['BASE_URL'] ?? 'null');
+  debugPrint(dotenv.env['EMPOWER_BASE_URL'] ?? 'null');
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthService>.value(value: authService),
+      ],
+      child: MyApp(initialScreen: initialScreen),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  final String? token;
+  final Widget initialScreen;
 
-  const MyApp({Key? key, this.token}) : super(key: key);
+  const MyApp({Key? key, required this.initialScreen}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthService()),
-      ],
-      child: MaterialApp(
-        title: 'Muroja\'ah Juz 30',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primaryColor: const Color(0xFF006666),
-          colorScheme: ColorScheme.fromSwatch().copyWith(
-            primary: const Color(0xFF006666),
-            secondary: const Color(0xFFD4AF37),
-          ),
-          fontFamily: 'Poppins',
-          textTheme: const TextTheme(
-            displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-            titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-            bodyLarge: TextStyle(fontSize: 16, color: Colors.white),
-          ),
+    return MaterialApp(
+      title: 'IntegraTIF',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primaryColor: const Color(0xFF006666),
+        colorScheme: ColorScheme.fromSwatch().copyWith(
+          primary: const Color(0xFF006666),
+          secondary: const Color(0xFFD4AF37),
         ),
-        routes: {
-          '/login': (context) => const LoginScreen(),
-          '/dashboard': (context) => const DashboardScreen(),
-        },
-        home: token != null ? const DashboardScreen() : const LoginScreen(),
+        fontFamily: 'Poppins',
+        textTheme: const TextTheme(
+          displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+          titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+          bodyLarge: TextStyle(fontSize: 16, color: Colors.white),
+        ),
       ),
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/dashboard': (context) => const DashboardScreen(),
+      },
+      home: initialScreen,
     );
   }
 }

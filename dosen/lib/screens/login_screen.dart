@@ -143,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       Text(
-                        'Aplikasi Muroja\'ah Juz 30 \nUin Suska Riau',
+                        'Aplikasi Muroja\'ah Juz 30 \nUIN SUSKA RIAU',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.9),
@@ -178,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         key: _formKey,
                         child: Column(
                           children: [
-                            // Email field
+                            // Email/Username field
                             Container(
                               width: constraints.maxWidth * 0.8,
                               decoration: BoxDecoration(
@@ -198,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 decoration: const InputDecoration(
                                   filled: true,
                                   prefixIcon: Icon(Icons.email_outlined, color: Colors.teal),
-                                  hintText: 'Email UIN Suska',
+                                  hintText: 'Email/Username',
                                   hintStyle: TextStyle(color: Colors.grey),
                                   border: const OutlineInputBorder(
                                     borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -207,10 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'Email tidak boleh kosong';
-                                  }
-                                  if (!value.contains('@')) {
-                                    return 'Format email tidak valid';
+                                    return 'Email/Username tidak boleh kosong';
                                   }
                                   return null;
                                 },
