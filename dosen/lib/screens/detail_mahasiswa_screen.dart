@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:provider/provider.dart';
 import '../services/dosen_service.dart';
+import '../services/auth_service.dart';
 import '../models/setoran_model.dart';
 import '../constants.dart';
 
@@ -15,7 +16,7 @@ class DetailMahasiswaScreen extends StatefulWidget {
 }
 
 class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with TickerProviderStateMixin {
-  final DosenService _dosenService = DosenService();
+  late DosenService _dosenService;
   Map<String, dynamic>? _mahasiswaData;
   List<Setoran> _setoranList = [];
   List<Setoran> _cartToSave = [];
@@ -33,7 +34,9 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
   @override
   void initState() {
     super.initState();
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
 
     _animationController = AnimationController(
       vsync: this,
@@ -47,6 +50,14 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
       parent: _animationController,
       curve: Curves.easeOut,
     ));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final authService = Provider.of<AuthService>(context, listen: false);
+    _dosenService = DosenService(authService);
+    _dosenService.setContext(context);
   }
 
   @override
@@ -185,41 +196,71 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
 
   Widget _buildActionButtons() {
     if (_cartToSave.isNotEmpty && _cartToCancel.isEmpty) {
-      return ElevatedButton.icon(
-        onPressed: () => _showSaveSetoranModal(context),
-        icon: const Icon(Icons.save, color: Colors.white),
-        label: Text(
-          'Simpan (${_cartToSave.length})',
-          style: const TextStyle(color: Colors.white),
+      return Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Constants.primaryColor,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          minimumSize: const Size.fromHeight(50),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+        child: SafeArea(
+          child: ElevatedButton.icon(
+            onPressed: () => _showSaveSetoranModal(context),
+            icon: const Icon(Icons.save, color: Colors.white),
+            label: Text(
+              'Simpan (${_cartToSave.length})',
+              style: const TextStyle(color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Constants.primaryColor,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              minimumSize: const Size.fromHeight(50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
           ),
         ),
       );
     } else if (_cartToCancel.isNotEmpty && _cartToSave.isEmpty) {
-      return ElevatedButton.icon(
-        onPressed: _batalkanSetoran,
-        icon: const Icon(Icons.cancel, color: Colors.white),
-        label: Text(
-          'Batal (${_cartToCancel.length})',
-          style: const TextStyle(color: Colors.white),
+      return Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          minimumSize: const Size.fromHeight(50),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+        child: SafeArea(
+          child: ElevatedButton.icon(
+            onPressed: _batalkanSetoran,
+            icon: const Icon(Icons.cancel, color: Colors.white),
+            label: Text(
+              'Batal (${_cartToCancel.length})',
+              style: const TextStyle(color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              minimumSize: const Size.fromHeight(50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
           ),
         ),
       );
     }
-    return const SizedBox();
+    return const SizedBox.shrink();
   }
 
   Future<void> _generateAndOpenStudentPdf() async {
@@ -463,322 +504,331 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Constants.primaryColor,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-            ),
-            padding: const EdgeInsets.all(20),
-            child: Column(
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Column(
               children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.white,
-                      child: Text(
-                        info?['nama']?.substring(0, 1).toUpperCase() ?? '',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Constants.primaryColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            info?['nama'] ?? '',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${info?['nim']} • Semester ${info?['semester']}',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 14,
-                            ),
-                          ),
-                          Text(
-                            info?['email'] ?? '',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
                 Container(
-                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Constants.primaryColor,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(30),
+                      bottomRight: Radius.circular(30),
+                    ),
                   ),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            "Progress Muroja'ah",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 14,
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor: Colors.white,
+                            child: Text(
+                              info?['nama']?.substring(0, 1).toUpperCase() ?? '',
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Constants.primaryColor,
+                              ),
                             ),
                           ),
-                          Text(
-                            '${setoranInfo?['persentase_progres_setor']?.toStringAsFixed(1)}%',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      LinearProgressIndicator(
-                        value: (setoranInfo?['persentase_progres_setor'] ?? 0) / 100,
-                        backgroundColor: Colors.white.withOpacity(0.3),
-                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                        minHeight: 8,
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${setoranInfo?['total_sudah_setor']} dari ${setoranInfo?['total_wajib_setor']} surat',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            'Terakhir: ${setoranInfo?['terakhir_setor']}',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          Container(
-            height: 50,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                "Semua",
-                "Sudah di-muroja'ah",
-                "Belum di-muroja'ah",
-              ].map((filter) {
-                final isSelected = _selectedFilter == filter;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(filter),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedFilter = filter;
-                        _selectAllBelumSetor = false;
-                        _selectAllSudahSetor = false;
-                        _cartToSave.clear();
-                        _cartToCancel.clear();
-                      });
-                    },
-                    backgroundColor: Colors.white,
-                    selectedColor: Constants.primaryColor,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-
-          if (_selectedFilter == "Sudah di-muroja'ah" || _selectedFilter == "Belum di-muroja'ah")
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  Checkbox(
-                    value: _selectedFilter == "Sudah di-muroja'ah" ? _selectAllSudahSetor : _selectAllBelumSetor,
-                    onChanged: (value) {
-                      _toggleSelectAll(_selectedFilter == "Sudah di-muroja'ah", value);
-                    },
-                    activeColor: Constants.primaryColor,
-                  ),
-                  Text(
-                    'Pilih semua yang ${_selectedFilter == "sudah di-muroja'ah" ? "sudah di-muroja'ah" : "belum di-muroja'ah"}',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadData,
-              child: _filteredSetoranList.isEmpty && !_isLoading
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _filteredSetoranList.length,
-                itemBuilder: (context, index) {
-                  final setoran = _filteredSetoranList[index];
-                  final isInCart = _isInCart(setoran);
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: isInCart
-                          ? BorderSide(
-                        color: setoran.sudahSetor ? Colors.red : Colors.green,
-                        width: 2,
-                      )
-                          : BorderSide.none,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
+                          const SizedBox(width: 16),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  setoran.nama,
+                                  info?['nama'] ?? '',
                                   style: const TextStyle(
-                                    fontSize: 16,
+                                    color: Colors.white,
+                                    fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  setoran.label,
+                                  '${info?['nim']} • Semester ${info?['semester']}',
                                   style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
                                     fontSize: 14,
-                                    color: Colors.grey[600],
                                   ),
                                 ),
-                                if (setoran.sudahSetor && setoran.infoSetoran != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Disahkan: ${setoran.infoSetoran!.dosenYangMengesahkan.nama}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.green,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                Text(
+                                  info?['email'] ?? '',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 12,
                                   ),
-                                  Text(
-                                    'Tanggal: ${setoran.infoSetoran!.tglSetoran}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ],
                             ),
                           ),
-                          Column(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: setoran.sudahSetor
-                                      ? Colors.green.withOpacity(0.1)
-                                      : Colors.orange.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  setoran.sudahSetor ? "Sudah di-muroja'ah" : "Belum di-muroja'ah",
-                                  style: TextStyle(
-                                      fontSize: 10,
-                                      color: setoran.sudahSetor ? Colors.green : Colors.orange,
-                                      fontWeight: FontWeight.w600                               ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              ElevatedButton(
-                                onPressed: () => _toggleCart(setoran),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isInCart
-                                      ? (setoran.sudahSetor ? Colors.red : Colors.grey)
-                                      : (setoran.sudahSetor ? Colors.orange : Constants.primaryColor),
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                  minimumSize: Size.zero,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: Text(
-                                  isInCart
-                                      ? (setoran.sudahSetor ? 'Hapus' : 'Batal')
-                                      : (setoran.sudahSetor ? 'Batal' : 'Simpan'),
-                                  style: const TextStyle(fontSize: 12, color: Colors.white),
-                                ),
-                              ),
-                            ],
-                          ),
                         ],
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-
-          SlideTransition(
-            position: _slideAnimation,
-            child: Container(
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, -2),
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Progress Muroja'ah",
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  '${setoranInfo?['persentase_progres_setor']?.toStringAsFixed(1)}%',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            LinearProgressIndicator(
+                              value: (setoranInfo?['persentase_progres_setor'] ?? 0) / 100,
+                              backgroundColor: Colors.white.withOpacity(0.3),
+                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                              minHeight: 8,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '${setoranInfo?['total_sudah_setor']} dari ${setoranInfo?['total_wajib_setor']} surat',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Terakhir: ${setoranInfo?['terakhir_setor']}',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: _buildActionButtons(),
+                ),
+
+                // Filter chips
+                Container(
+                  height: 50,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      "Semua",
+                      "Sudah di-muroja'ah",
+                      "Belum di-muroja'ah",
+                    ].map((filter) {
+                      final isSelected = _selectedFilter == filter;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text(filter),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedFilter = filter;
+                              _selectAllBelumSetor = false;
+                              _selectAllSudahSetor = false;
+                              _cartToSave.clear();
+                              _cartToCancel.clear();
+                            });
+                          },
+                          backgroundColor: Colors.white,
+                          selectedColor: Constants.primaryColor,
+                          labelStyle: TextStyle(
+                            color: isSelected ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+                // Select all checkbox
+                if (_selectedFilter == "Sudah di-muroja'ah" || _selectedFilter == "Belum di-muroja'ah")
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: _selectedFilter == "Sudah di-muroja'ah" ? _selectAllSudahSetor : _selectAllBelumSetor,
+                          onChanged: (value) {
+                            _toggleSelectAll(_selectedFilter == "Sudah di-muroja'ah", value);
+                          },
+                          activeColor: Constants.primaryColor,
+                        ),
+                        Text(
+                          'Pilih semua yang ${_selectedFilter == "Sudah di-muroja'ah" ? "sudah di-muroja'ah" : "belum di-muroja'ah"}',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _loadData,
+                    child: _filteredSetoranList.isEmpty && !_isLoading
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                      padding: EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 0,
+                        bottom: (_cartToSave.isNotEmpty || _cartToCancel.isNotEmpty)
+                            ? 100
+                            : 16,
+                      ),
+                      itemCount: _filteredSetoranList.length,
+                      itemBuilder: (context, index) {
+                        final setoran = _filteredSetoranList[index];
+                        final isInCart = _isInCart(setoran);
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: isInCart
+                                ? BorderSide(
+                              color: setoran.sudahSetor ? Colors.red : Colors.green,
+                              width: 2,
+                            )
+                                : BorderSide.none,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        setoran.nama,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        setoran.label,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      if (setoran.sudahSetor && setoran.infoSetoran != null) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Disahkan: ${setoran.infoSetoran!.dosenYangMengesahkan.nama}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.green,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Tanggal: ${setoran.infoSetoran!.tglSetoran}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: setoran.sudahSetor
+                                            ? Colors.green.withOpacity(0.1)
+                                            : Colors.orange.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        setoran.sudahSetor ? "Sudah di-muroja'ah" : "Belum di-muroja'ah",
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: setoran.sudahSetor ? Colors.green : Colors.orange,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ElevatedButton(
+                                      onPressed: () => _toggleCart(setoran),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: isInCart
+                                            ? (setoran.sudahSetor ? Colors.red : Colors.grey)
+                                            : (setoran.sudahSetor ? Colors.orange : Constants.primaryColor),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        minimumSize: Size.zero,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        isInCart
+                                            ? (setoran.sudahSetor ? 'Hapus' : 'Batal')
+                                            : (setoran.sudahSetor ? 'Batal' : 'Simpan'),
+                                        style: const TextStyle(fontSize: 12, color: Colors.white),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+
+            if (_cartToSave.isNotEmpty || _cartToCancel.isNotEmpty)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: _buildActionButtons(),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
