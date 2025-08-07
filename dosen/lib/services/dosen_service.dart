@@ -4,128 +4,213 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import '../constants.dart';
-import 'auth_service.dart';
+import 'auth_service.dart'; // Import AuthService
+import 'package:flutter/material.dart';
+import '../widgets/alert_dialog.dart';
 
 class DosenService {
-  Future<Map<String, dynamic>?> getPASaya() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+  final AuthService _authService;
+  BuildContext? _context;
 
-      final response = await http.get(
-        Uri.parse('${Constants.baseUrl}/dosen/pa-saya'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      );
+  DosenService(this._authService);
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      }
-      return null;
-    } catch (e) {
-      print('Error getting PA data: $e');
-      return null;
-    }
+  void setContext(BuildContext context) {
+    _context = context;
   }
 
-  Future<Map<String, dynamic>?> getSetoranMahasiswa(String nim) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+  Future<dynamic> makeHttpRequest({
+    required String endpoint,
+    required String method,
+    Map<String, dynamic>? body,
+    bool isFileDownload = false,
+    String? filePrefix,
+    String? identifier,
+  }) async {
+    var result = await _performRequest(endpoint, method, body, isFileDownload, filePrefix, identifier);
 
-      final response = await http.get(
-        Uri.parse('${Constants.baseUrl}/mahasiswa/setoran/$nim'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
+    if (result == 'UNAUTHORIZED') {
+      bool refreshed = await _authService.ensureValidToken();
+      if (refreshed) {
+        result = await _performRequest(endpoint, method, body, isFileDownload, filePrefix, identifier);
+      } else {
+        return null;
       }
-      return null;
-    } catch (e) {
-      print('Error getting setoran mahasiswa: $e');
-      return null;
     }
+    return result;
   }
 
-  Future<bool> simpanSetoran(String nim, List<Map<String, String>> dataSetoran, String? tglSetoran) async {
+  Future<dynamic> _performRequest(
+      String endpoint,
+      String method,
+      Map<String, dynamic>? body,
+      bool isFileDownload,
+      String? filePrefix,
+      String? identifier,
+      ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
 
-      final Map<String, dynamic> body = {
-        'data_setoran': dataSetoran,
+      if (token == null || !_authService.isDosenRole(token)) {
+        await _authService.logout();
+        return null;
+      }
+
+      final headers = <String, String>{
+        'Authorization': 'Bearer $token',
+        'apikey': Constants.appKey,
       };
 
-      if (tglSetoran != null) {
-        body['tgl_setoran'] = tglSetoran;
+      if (body != null && !isFileDownload) {
+        headers['Content-Type'] = 'application/json';
       }
 
-      final response = await http.post(
-        Uri.parse('${Constants.baseUrl}/mahasiswa/setoran/$nim'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode(body),
-      );
-      return response.statusCode == 201;
-    } catch (e) {
-      print('Error saving setoran: $e');
-      return false;
-    }
-  }
+      final uri = Uri.parse('${Constants.baseUrl}$endpoint');
 
-  Future<bool> deleteSetoran(String nim, List<Map<String, String>> dataSetoran) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      http.Response response;
 
-      final response = await http.delete(
-        Uri.parse('${Constants.baseUrl}/mahasiswa/setoran/$nim'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'data_setoran': dataSetoran,
-        }),
-      );
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error deleting setoran: $e');
-      return false;
-    }
-  }
+      print("Request URL: $uri");
+      print("Request Headers: $headers");
+      print("apikey:${Constants.appKey}");
+      if (body != null) {
+        print("Request Body: ${json.encode(body)}");
+      }
 
-  Future<String?> getKartuMurojaahMahasiswaPdf(String nim) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      switch (method.toUpperCase()) {
+        case 'GET':
+          response = await http.get(uri, headers: headers);
+          break;
+        case 'POST':
+          response = await http.post(
+            uri,
+            headers: headers,
+            body: body != null ? json.encode(body) : null,
+          );
+          break;
+        case 'DELETE':
+          response = await http.delete(
+            uri,
+            headers: headers,
+            body: body != null ? json.encode(body) : null,
+          );
+          break;
+        default:
+          throw Exception('Unsupported HTTP method: $method');
+      }
 
-      final response = await http.get(
-        Uri.parse('${Constants.baseUrl}/mahasiswa/kartu-murojaah/$nim'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      );
+      print('HTTP Response status: ${response.statusCode}');
 
-      if (response.statusCode == 200) {
+      if (isFileDownload && response.statusCode == 200) {
         final directory = await getTemporaryDirectory();
-        final filePath = '${directory.path}/kartu_murojaah_$nim.pdf';
+        final fileName = '${filePrefix ?? 'file'}_${identifier ?? DateTime.now().millisecondsSinceEpoch}.pdf';
+        final filePath = '${directory.path}/$fileName';
         final file = File(filePath);
         await file.writeAsBytes(response.bodyBytes);
         return filePath;
-      } else {
-        print('Failed to load PDF for NIM $nim: ${response.statusCode}');
+      }
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (isFileDownload) {
+          return null;
+        }
+
+        if (method.toUpperCase() == 'POST') {
+          return response.statusCode == 201;
+        }
+        if (method.toUpperCase() == 'DELETE') {
+          return response.statusCode == 200;
+        }
+
+        return json.decode(response.body);
+      } else if (response.statusCode == 401) {
+        return 'UNAUTHORIZED';
+      } else if (response.statusCode == 403) {
+        print('HTTP 403 Forbidden: Access denied for endpoint $endpoint');
+        if (_context != null && _context!.mounted) {
+          ReusableDialog.showErrorDialog(
+            context: _context!,
+            title: 'Akses Ditolak',
+            message: 'Anda tidak memiliki izin untuk mengakses sumber daya ini.',
+          );
+        }
+        return null;
+      } else if (response.statusCode >= 500 && response.statusCode < 600) {
+        print('HTTP ${response.statusCode} Server Error: ${response.body}');
+        if (_context != null && _context!.mounted) {
+          ReusableDialog.showErrorDialog(
+            context: _context!,
+            title: 'Kesalahan Server',
+            message: 'Terjadi kesalahan pada server. Mohon coba lagi nanti.',
+          );
+        }
         return null;
       }
+
+      return null;
     } catch (e) {
-      print('Error getting kartu murojaah mahasiswa PDF: $e');
+      print('Error in makeHttpRequest: $e');
+      if (_context != null && _context!.mounted) {
+        ReusableDialog.showErrorDialog(
+          context: _context!,
+          title: 'Kesalahan Jaringan',
+          message: 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.',
+        );
+      }
       return null;
     }
+  }
+
+  Future<Map<String, dynamic>?> getPASaya() async {
+    return await makeHttpRequest(
+      endpoint: '/dosen/pa-saya',
+      method: 'GET',
+    );
+  }
+
+  Future<Map<String, dynamic>?> getSetoranMahasiswa(String nim) async {
+    return await makeHttpRequest(
+      endpoint: '/mahasiswa/setoran/$nim',
+      method: 'GET',
+    );
+  }
+
+  Future<bool> simpanSetoran(String nim, List<Map<String, String>> dataSetoran, String? tglSetoran) async {
+    final Map<String, dynamic> body = {
+      'data_setoran': dataSetoran,
+    };
+
+    if (tglSetoran != null) {
+      body['tgl_setoran'] = tglSetoran;
+    }
+
+    final result = await makeHttpRequest(
+      endpoint: '/mahasiswa/setoran/$nim',
+      method: 'POST',
+      body: body,
+    );
+
+    return result == true;
+  }
+
+  Future<bool> deleteSetoran(String nim, List<Map<String, String>> dataSetoran) async {
+    final result = await makeHttpRequest(
+      endpoint: '/mahasiswa/setoran/$nim',
+      method: 'DELETE',
+      body: {
+        'data_setoran': dataSetoran,
+      },
+    );
+
+    return result == true;
+  }
+
+  Future<String?> getKartuMurojaahMahasiswaPdf(String nim) async {
+    return await makeHttpRequest(
+      endpoint: '/mahasiswa/kartu-murojaah/$nim',
+      method: 'GET',
+      isFileDownload: true,
+      filePrefix: 'kartu_murojaah',
+      identifier: nim,
+    );
   }
 }
