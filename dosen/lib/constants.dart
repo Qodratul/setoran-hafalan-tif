@@ -10,6 +10,7 @@ class Constants {
   // Client credentials
   static String get clientId => dotenv.env['CLIENT_ID'] ?? '';
   static String get clientSecret => dotenv.env['CLIENT_SECRET'] ?? '';
+  static String get appKey => dotenv.env['APP_KEY'] ?? '';
 
   // Labels
   static const List<String> monthNames = [
