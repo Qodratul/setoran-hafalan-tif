@@ -15,7 +15,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> with TickerProviderStateMixin {
-  final DosenService _dosenService = DosenService();
+  late DosenService _dosenService;
   Map<String, dynamic>? _dosenData;
   List<Mahasiswa> _mahasiswaList = [];
   List<Mahasiswa> _filteredMahasiswaList = [];
@@ -26,14 +26,13 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   bool _isDisposed = false;
   AuthService? _authService;
 
-  // Animations for progress indicator (similar to student app)
   late AnimationController _pulseAnimationController;
   late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
-    _initializeAnimations(); // Initialize animations
+    _initializeAnimations();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isDisposed) {
         _initializeScreen();
@@ -60,6 +59,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   void didChangeDependencies() {
     super.didChangeDependencies();
     _authService = Provider.of<AuthService>(context, listen: false);
+    _dosenService = DosenService(_authService!);
+    _dosenService.setContext(context);
   }
 
   @override
@@ -97,7 +98,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
     try {
       final authService = context.read<AuthService>();
-      final hasValidToken = await authService.ensureValidToken(showDialog: true);
+      final hasValidToken = await authService.ensureValidToken();
 
       if (!hasValidToken) {
         if (mounted) {
@@ -132,7 +133,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   Future<bool> _ensureValidTokenSafely(AuthService authService) async {
     try {
-      return await authService.ensureValidToken(showDialog: false);
+      return await authService.ensureValidToken();
     } catch (e) {
       debugPrint('Error ensuring valid token: $e');
       return false;
@@ -160,7 +161,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   Future<void> _checkTokenStatus(AuthService authService) async {
     try {
-      await authService.ensureValidToken(showDialog: true);
+      await authService.ensureValidToken();
     } catch (e) {
       debugPrint('Error checking token status: $e');
     }
@@ -283,8 +284,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 ),
               ),
             ),
-
-            _buildSessionStatusIndicator(),
 
             // Filter Angkatan
             Container(
@@ -559,55 +558,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSessionStatusIndicator() {
-    return Consumer<AuthService>(
-      builder: (context, authService, child) {
-        if (authService.willExpireSoon) {
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade100,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.orange.shade300),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.access_time, color: Colors.orange.shade700, size: 20),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Sesi akan berakhir dalam 5 menit',
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    if (!_isDisposed && mounted) {
-                      try {
-                        await authService.handleTokenRefresh(showDialog: true);
-                      } catch (e) {
-                        debugPrint('Error refreshing token: $e');
-                      }
-                    }
-                  },
-                  child: const Text(
-                    'Perpanjang',
-                    style: TextStyle(color: Colors.orange),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-        return const SizedBox.shrink();
-      },
     );
   }
 

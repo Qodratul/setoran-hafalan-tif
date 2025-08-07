@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../constants.dart';
-import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -52,8 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       authService.setContext(context);
 
-
-      final success = await authService.login(email, password);
+      final success = await authService.login(email, password, context: context);
       print('Login attempt with email: $email, success: $success');
 
       if (success) {
@@ -68,8 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
           setState(() {
             if (authService.token == null) {
               _errorMessage = 'Login gagal. Periksa email dan password Anda.';
-            } else {
-              _errorMessage = 'Akses ditolak. Hanya dosen yang dapat menggunakan aplikasi ini.';
             }
           });
         }
