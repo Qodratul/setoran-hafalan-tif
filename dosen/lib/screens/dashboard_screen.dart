@@ -4,14 +4,13 @@ import '../services/auth_service.dart';
 import '../services/dosen_service.dart';
 import '../models/mahasiswa_model.dart';
 import '../constants.dart';
-import 'login_screen.dart';
 import 'detail_mahasiswa_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
-  _DashboardScreenState createState() => _DashboardScreenState();
+  State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> with TickerProviderStateMixin {
@@ -112,10 +111,11 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         if (mounted && !_isDisposed) {
           setState(() {
             _dosenData = data['data'];
-            _mahasiswaList = (data['data']['info_mahasiswa_pa']['daftar_mahasiswa'] as List)
-                .map((e) => Mahasiswa.fromJson(e))
-                .toList();
-            _filterMahasiswa();
+            final list = data['data']?['info_mahasiswa_pa']?['daftar_mahasiswa'];
+            _mahasiswaList = (list is List)
+                ? list.map((e) => Mahasiswa.fromJson(e)).toList()
+                : [];
+            _applyFilter();
             _isLoading = false;
           });
         }
@@ -131,25 +131,21 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     }
   }
 
-  Future<bool> _ensureValidTokenSafely(AuthService authService) async {
-    try {
-      return await authService.ensureValidToken();
-    } catch (e) {
-      debugPrint('Error ensuring valid token: $e');
-      return false;
-    }
+  void _applyFilter() {
+    final search = _searchController.text.toLowerCase();
+    _filteredMahasiswaList = _mahasiswaList.where((mahasiswa) {
+      final matchesSearch = mahasiswa.nama.toLowerCase().contains(search) ||
+          mahasiswa.nim.contains(search);
+      final matchesAngkatan = _selectedAngkatan == 'Semua' || mahasiswa.angkatan == _selectedAngkatan;
+      return matchesSearch && matchesAngkatan;
+    }).toList();
   }
 
   void _filterMahasiswa() {
     if (_isDisposed || !mounted) return;
 
     setState(() {
-      _filteredMahasiswaList = _mahasiswaList.where((mahasiswa) {
-        final matchesSearch = mahasiswa.nama.toLowerCase().contains(_searchController.text.toLowerCase()) ||
-            mahasiswa.nim.contains(_searchController.text);
-        final matchesAngkatan = _selectedAngkatan == 'Semua' || mahasiswa.angkatan == _selectedAngkatan;
-        return matchesSearch && matchesAngkatan;
-      }).toList();
+      _applyFilter();
     });
   }
 
@@ -182,12 +178,12 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   end: Alignment.bottomRight,
                   colors: [
                     Constants.primaryColor,
-                    Constants.primaryColor.withOpacity(0.8),
+                    Constants.primaryColor.withValues(alpha: 0.8),
                   ],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   ),
@@ -216,7 +212,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                             Text(
                               _dosenData?['nama'] ?? 'Loading...',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
                                 fontSize: 16,
                               ),
                             ),
@@ -226,9 +222,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
+                                    color: Colors.white.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: Colors.white.withOpacity(0.4)),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -344,8 +340,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
 
   Widget _buildLoadingState() {
-    return Expanded(
-      child: Center(
+    return Center(
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           shrinkWrap: true,
@@ -386,14 +381,12 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
             ),
           ],
         ),
-      ),
     );
   }
 
 
   Widget _buildEmptyState() {
-    return Expanded(
-      child: Center(
+    return Center(
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           shrinkWrap: true,
@@ -426,7 +419,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -461,7 +453,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: Constants.primaryColor.withOpacity(0.1),
+                    backgroundColor: Constants.primaryColor.withValues(alpha: 0.1),
                     child: Text(
                       mahasiswa.nama.substring(0, 1).toUpperCase(),
                       style: TextStyle(
@@ -537,8 +529,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: mahasiswa.infoSetoran.terakhirSetor == 'Belum ada'
-                          ? Colors.red.withOpacity(0.1)
-                          : Colors.green.withOpacity(0.1),
+                          ? Colors.red.withValues(alpha: 0.1)
+                          : Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -583,11 +575,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   try {
                     if (_authService != null) {
                       await _authService!.logout();
-                    }
-                    if (mounted && !_isDisposed) {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      );
+                    } else if (mounted && !_isDisposed) {
+                      Navigator.of(context).pushReplacementNamed('/login');
                     }
                   } catch (e) {
                     debugPrint('Error during logout: $e');

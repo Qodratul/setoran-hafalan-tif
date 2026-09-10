@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -15,7 +14,11 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  await dotenv.load(fileName: ".env");
+  try {
+    await dotenv.load(fileName: "assets/.env");
+  } catch (_) {
+    await dotenv.load(fileName: ".env");
+  }
 
   final authService = AuthService();
   await authService.loadTokenFromStorage();
@@ -38,7 +41,7 @@ void main() async {
 class MyApp extends StatelessWidget {
   final Widget initialScreen;
 
-  const MyApp({Key? key, required this.initialScreen}) : super(key: key);
+  const MyApp({super.key, required this.initialScreen});
 
   @override
   Widget build(BuildContext context) {

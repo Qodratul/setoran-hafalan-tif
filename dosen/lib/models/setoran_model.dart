@@ -17,10 +17,10 @@ class Setoran {
 
   factory Setoran.fromJson(Map<String, dynamic> json) {
     return Setoran(
-      id: json['id'],
-      nama: json['nama'],
-      label: json['label'],
-      sudahSetor: json['sudah_setor'],
+      id: json['id'] ?? '',
+      nama: json['nama'] ?? '',
+      label: json['label'] ?? '',
+      sudahSetor: json['sudah_setor'] ?? false,
       infoSetoran: json['info_setoran'] != null
           ? InfoSetoranDetail.fromJson(json['info_setoran'])
           : null,
@@ -43,10 +43,10 @@ class InfoSetoranDetail {
 
   factory InfoSetoranDetail.fromJson(Map<String, dynamic> json) {
     return InfoSetoranDetail(
-      id: json['id'],
-      tglSetoran: json['tgl_setoran'],
-      tglValidasi: json['tgl_validasi'],
-      dosenYangMengesahkan: Dosen.fromJson(json['dosen_yang_mengesahkan']),
+      id: json['id'] ?? '',
+      tglSetoran: json['tgl_setoran'] ?? '',
+      tglValidasi: json['tgl_validasi'] ?? '',
+      dosenYangMengesahkan: Dosen.fromJson(json['dosen_yang_mengesahkan'] ?? {}),
     );
   }
 }

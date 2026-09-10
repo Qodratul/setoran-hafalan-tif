@@ -11,7 +11,7 @@ import 'login_screen.dart';
 import 'profile_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -243,6 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   Future<void> _logout() async {
     final confirmed = await _showLogoutConfirmation();
     if (confirmed == true) {
+      if (!mounted) return;
       try {
         final authService = context.read<AuthService>();
         await authService.logout();
@@ -342,7 +343,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       barrierLabel: MaterialLocalizations
           .of(context)
           .modalBarrierDismissLabel,
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, animation, secondaryAnimation) {
         return Center(
@@ -357,12 +358,12 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 30,
                       offset: const Offset(0, 10),
                     ),
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 60,
                       offset: const Offset(0, 20),
                     ),
@@ -393,7 +394,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
@@ -463,7 +464,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.grey.withOpacity(0.3),
+                                  color: Colors.grey.withValues(alpha: 0.3),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
@@ -593,18 +594,18 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
           BoxShadow(
-            color: Colors.blue.withOpacity(0.1),
+            color: Colors.blue.withValues(alpha: 0.1),
             blurRadius: 40,
             offset: const Offset(0, 8),
           ),
         ],
         border: Border.all(
-          color: Colors.white.withOpacity(0.7),
+          color: Colors.white.withValues(alpha: 0.7),
           width: 1.5,
         ),
       ),
@@ -636,10 +637,10 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -651,7 +652,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -794,13 +795,13 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
             ],
             border: Border.all(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               width: 2,
             ),
           ),
@@ -945,7 +946,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           children: [
             Icon(
               Icons.trending_up,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               size: 20,
             ),
             const SizedBox(width: 8),
@@ -953,7 +954,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               'Progress Muroja\'ah',
               style: TextStyle(
                 fontSize: 18,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -984,10 +985,10 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               height: 6,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(6),
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -1001,7 +1002,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                     Container(
                       width: double.infinity,
                       height: double.infinity,
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                     ),
                     FractionallySizedBox(
                       widthFactor: (progress / 100) * _progressAnimation.value,
@@ -1010,9 +1011,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              progressColor.withOpacity(0.8),
+                              progressColor.withValues(alpha: 0.8),
                               progressColor,
-                              progressColor.withOpacity(0.9),
+                              progressColor.withValues(alpha: 0.9),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(6),
@@ -1033,8 +1034,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                                   end: Alignment.centerRight,
                                   colors: [
                                     Colors.transparent,
-                                    Colors.white.withOpacity(
-                                        0.3 * _pulseAnimation.value),
+                                    Colors.white.withValues(
+                                        alpha: 0.3 * _pulseAnimation.value),
                                     Colors.transparent,
                                   ],
                                   stops: const [0.0, 0.5, 1.0],
@@ -1064,8 +1065,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                           horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        border: Border.all(color: progressColor.withOpacity(
-                            0.3)),
+                        border: Border.all(color: progressColor.withValues(
+                            alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1096,15 +1097,15 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   padding: const EdgeInsets.symmetric(
                       horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                    color: Colors.white.withValues(alpha: 0.2),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.book,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         size: 16,
                       ),
                       const SizedBox(width: 6),
@@ -1117,7 +1118,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                             '$animatedCompleted/$totalCount',
                             style: TextStyle(
                               fontSize: 16,
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontWeight: FontWeight.bold,
                             ),
                           );
@@ -1188,7 +1189,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           height: 12,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(6),
-            color: Colors.white.withOpacity(0.3),
+            color: Colors.white.withValues(alpha: 0.3),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
@@ -1201,9 +1202,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                       colors: [
-                        Colors.white.withOpacity(0.1),
-                        Colors.white.withOpacity(0.3 * _pulseAnimation.value),
-                        Colors.white.withOpacity(0.1),
+                        Colors.white.withValues(alpha: 0.1),
+                        Colors.white.withValues(alpha: 0.3 * _pulseAnimation.value),
+                        Colors.white.withValues(alpha: 0.1),
                       ],
                     ),
                   ),
@@ -1216,7 +1217,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -1224,7 +1225,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
             children: [
               Icon(
                 Icons.hourglass_empty,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 size: 16,
               ),
               const SizedBox(width: 6),
@@ -1232,7 +1233,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 'Memuat progress...',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w500,
                 ),
               ),

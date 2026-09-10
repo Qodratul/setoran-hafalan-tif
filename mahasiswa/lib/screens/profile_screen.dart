@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
-import '/constants.dart';
+import '../constants.dart';
 
 class ProfileScreen extends StatefulWidget {
   final UserModel user;
@@ -202,13 +202,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     offset: const Offset(0, 8),
                     blurRadius: 20,
                     spreadRadius: 2,
                   ),
                   BoxShadow(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     offset: const Offset(0, -2),
                     blurRadius: 10,
                   ),
@@ -265,15 +265,15 @@ class _ProfileScreenState extends State<ProfileScreen>
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     offset: const Offset(0, 4),
                     blurRadius: 20,
                     spreadRadius: 1,
@@ -288,7 +288,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
@@ -341,15 +341,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                 margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       offset: const Offset(0, 2),
                       blurRadius: 8,
                     ),
@@ -360,7 +360,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Constants.primaryColor.withOpacity(0.8),
+                        color: Constants.primaryColor.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(

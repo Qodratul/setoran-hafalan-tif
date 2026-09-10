@@ -70,7 +70,7 @@ class AuthService extends ChangeNotifier {
       );
 
       if (response.statusCode >= 500 && response.statusCode < 600) {
-        if (context != null) {
+        if (context != null && context.mounted) {
           ReusableDialog.showErrorDialog(
             context: context,
             title: 'Error',
@@ -96,14 +96,14 @@ class AuthService extends ChangeNotifier {
         DateTime? receivedRefreshTokenExpiry = DateTime.now().add(Duration(seconds: data['refresh_expires_in']));
 
         if (!isDosenRole(receivedToken)) {
-          if (context != null) {
-          ReusableDialog.showErrorDialog(
+          if (context != null && context.mounted) {
+            ReusableDialog.showErrorDialog(
               context: context,
               title: 'Akses Ditolak',
               message: 'Anda tidak memiliki akses sebagai dosen',
-          );
+            );
             if (kDebugMode) {
-              print('Login failed: User does not have "dosen" role.');
+              debugPrint('Login failed: User does not have "dosen" role.');
             }
           }
 
@@ -130,12 +130,19 @@ class AuthService extends ChangeNotifier {
         await prefs.setString('tokenExpiry', _tokenExpiry!.toIso8601String());
         await prefs.setString('refreshTokenExpiry', _refreshTokenExpiry!.toIso8601String());
 
+        _isLoading = false;
         notifyListeners();
         return true;
       } else {
         if (kDebugMode) {
-          print('Login API failed with status: ${response.statusCode}, body: ${response.body}');
+          debugPrint('Login API failed with status: ${response.statusCode}, body: ${response.body}');
         }
+        _token = null;
+        _refreshToken = null;
+        _idToken = null;
+        _tokenExpiry = null;
+        _refreshTokenExpiry = null;
+        _isLoading = false;
         notifyListeners();
         return false;
       }
@@ -211,7 +218,7 @@ class AuthService extends ChangeNotifier {
         return false;
       }
 
-      _updateTokens(data);
+      await _updateTokens(data);
 
       _isLoading = false;
       notifyListeners();
@@ -228,7 +235,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  void _updateTokens(Map<String, dynamic> data) {
+  Future<void> _updateTokens(Map<String, dynamic> data) async {
     _token = data['access_token'];
     _refreshToken = data['refresh_token'];
     _tokenExpiry = DateTime.now().add(Duration(seconds: data['expires_in']));
@@ -239,16 +246,15 @@ class AuthService extends ChangeNotifier {
       _refreshTokenExpiry = null;
     }
 
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setString('token', _token!);
-      prefs.setString('refreshToken', _refreshToken!);
-      prefs.setString('tokenExpiry', _tokenExpiry!.toIso8601String());
-      if (_refreshTokenExpiry != null) {
-        prefs.setString('refreshTokenExpiry', _refreshTokenExpiry!.toIso8601String());
-      } else {
-        prefs.remove('refreshTokenExpiry');
-      }
-    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', _token!);
+    await prefs.setString('refreshToken', _refreshToken!);
+    await prefs.setString('tokenExpiry', _tokenExpiry!.toIso8601String());
+    if (_refreshTokenExpiry != null) {
+      await prefs.setString('refreshTokenExpiry', _refreshTokenExpiry!.toIso8601String());
+    } else {
+      await prefs.remove('refreshTokenExpiry');
+    }
   }
 
   Future<bool> refreshToken() async {
@@ -296,15 +302,12 @@ class AuthService extends ChangeNotifier {
       _refreshTokenExpiry = null;
       notifyListeners();
 
-      if (_context != null) {
+      if (_context != null && _context!.mounted) {
         Navigator.of(_context!).popUntil((route) => route.isFirst);
         Navigator.of(_context!).pushReplacementNamed('/login');
       }
     }
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
+
 }

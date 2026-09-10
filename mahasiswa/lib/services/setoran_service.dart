@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -38,12 +39,12 @@ class SetoranService {
       } else if (response.statusCode == 401) {
         final success = await authService.handleTokenRefresh();
         if (success) {
-          return getSetoranSaya();
+          return await getSetoranSaya();
         }
       }
       return null;
     } catch (e) {
-      print('Error fetching setoran: $e');
+      developer.log('Error fetching setoran: $e');
       return null;
     }
   }
@@ -81,12 +82,12 @@ class SetoranService {
 
       final contentType = response.headers['content-type'] ?? '';
       if (!contentType.contains('application/pdf')) {
-        print('Response body (first 500 chars): ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}');
+        developer.log('Response body (first 500 chars): ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}');
       }
 
       if (response.statusCode == 200) {
         if (!contentType.contains('application/pdf')) {
-          print('Warning: Response is not PDF format. Content-Type: $contentType');
+          developer.log('Warning: Response is not PDF format. Content-Type: $contentType');
           return {
             'success': false,
             'error': 'Server tidak mengembalikan file PDF',
@@ -95,10 +96,10 @@ class SetoranService {
         }
 
         final bytes = response.bodyBytes;
-        print('PDF size: ${bytes.length} bytes');
+        developer.log('PDF size: ${bytes.length} bytes');
 
         if (bytes.isEmpty) {
-          print('Error: Empty PDF file received');
+          developer.log('Error: Empty PDF file received');
           return {
             'success': false,
             'error': 'File PDF kosong',
@@ -116,7 +117,7 @@ class SetoranService {
 
         if (await file.exists()) {
           final fileSize = await file.length();
-          print('File saved successfully: $filePath (${fileSize} bytes)');
+          developer.log('File saved successfully: $filePath ($fileSize bytes)');
 
           await prefs.setString('kartuMurajaahPath', filePath);
           await prefs.setString('kartuMurajaahFileName', fileName);
@@ -136,10 +137,10 @@ class SetoranService {
         }
 
       } else if (response.statusCode == 401) {
-        print('Token expired during request, attempting to refresh...');
+        developer.log('Token expired during request, attempting to refresh...');
         final success = await authService.handleTokenRefresh(showDialog: true);
         if (success) {
-          return downloadKartuMurajaah();
+          return await downloadKartuMurajaah();
         } else {
           return {
             'success': false,
@@ -204,7 +205,7 @@ class SetoranService {
             }
           }
         } catch (e) {
-          print('Failed to parse error response: $e');
+          developer.log('Failed to parse error response: $e');
         }
 
         return {
@@ -215,7 +216,7 @@ class SetoranService {
         };
       }
     } catch (e) {
-      print('Error downloading kartu murajaah: $e');
+      developer.log('Error downloading kartu murajaah: $e');
       return {
         'success': false,
         'error': 'Terjadi kesalahan: $e',
@@ -250,7 +251,7 @@ class SetoranService {
       if (response.statusCode == 401) {
         final refreshSuccess = await authService.handleTokenRefresh(showDialog: true);
         if (refreshSuccess) {
-          return checkKartuMurajaahAccess();
+          return await checkKartuMurajaahAccess();
         }
       }
 
@@ -267,7 +268,7 @@ class SetoranService {
     }
   }
 
-  @deprecated
+  @Deprecated("Gunakan downloadKartuMurajaah")
   Future<bool> kartuMurajaah() async {
     final result = await downloadKartuMurajaah();
     return result['success'] ?? false;

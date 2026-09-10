@@ -59,21 +59,26 @@ class DosenService {
       final headers = <String, String>{
         'Authorization': 'Bearer $token',
         'apikey': Constants.appKey,
+        'Accept': 'application/json',
       };
 
       if (body != null && !isFileDownload) {
         headers['Content-Type'] = 'application/json';
       }
 
-      final uri = Uri.parse('${Constants.baseUrl}$endpoint');
+      final String baseUrl = Constants.baseUrl.endsWith('/')
+          ? Constants.baseUrl.substring(0, Constants.baseUrl.length - 1)
+          : Constants.baseUrl;
+      final String cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
+      final uri = Uri.parse('$baseUrl$cleanEndpoint');
 
       http.Response response;
 
-      print("Request URL: $uri");
-      print("Request Headers: $headers");
-      print("apikey:${Constants.appKey}");
+      debugPrint("Request URL: $uri");
+      debugPrint("Request Headers: $headers");
+      debugPrint("apikey:${Constants.appKey}");
       if (body != null) {
-        print("Request Body: ${json.encode(body)}");
+        debugPrint("Request Body: ${json.encode(body)}");
       }
 
       switch (method.toUpperCase()) {
@@ -98,7 +103,7 @@ class DosenService {
           throw Exception('Unsupported HTTP method: $method');
       }
 
-      print('HTTP Response status: ${response.statusCode}');
+      debugPrint('HTTP Response status: ${response.statusCode}');
 
       if (isFileDownload && response.statusCode == 200) {
         final directory = await getTemporaryDirectory();
@@ -114,18 +119,15 @@ class DosenService {
           return null;
         }
 
-        if (method.toUpperCase() == 'POST') {
-          return response.statusCode == 201;
-        }
-        if (method.toUpperCase() == 'DELETE') {
-          return response.statusCode == 200;
+        if (method.toUpperCase() == 'POST' || method.toUpperCase() == 'DELETE') {
+          return true;
         }
 
         return json.decode(response.body);
       } else if (response.statusCode == 401) {
         return 'UNAUTHORIZED';
       } else if (response.statusCode == 403) {
-        print('HTTP 403 Forbidden: Access denied for endpoint $endpoint');
+        debugPrint('HTTP 403 Forbidden: Access denied for endpoint $endpoint');
         if (_context != null && _context!.mounted) {
           ReusableDialog.showErrorDialog(
             context: _context!,
@@ -135,12 +137,22 @@ class DosenService {
         }
         return null;
       } else if (response.statusCode >= 500 && response.statusCode < 600) {
-        print('HTTP ${response.statusCode} Server Error: ${response.body}');
+        debugPrint('HTTP ${response.statusCode} Server Error: ${response.body}');
+        String errorMessage = 'Terjadi kesalahan pada server (${response.statusCode}). Mohon coba lagi nanti.';
+        try {
+          final errorData = json.decode(response.body);
+          if (errorData is Map && errorData.containsKey('message')) {
+            errorMessage = errorData['message'].toString();
+          } else if (errorData is Map && errorData.containsKey('error')) {
+            errorMessage = errorData['error'].toString();
+          }
+        } catch (_) {}
+
         if (_context != null && _context!.mounted) {
           ReusableDialog.showErrorDialog(
             context: _context!,
             title: 'Kesalahan Server',
-            message: 'Terjadi kesalahan pada server. Mohon coba lagi nanti.',
+            message: errorMessage,
           );
         }
         return null;
@@ -148,7 +160,7 @@ class DosenService {
 
       return null;
     } catch (e) {
-      print('Error in makeHttpRequest: $e');
+      debugPrint('Error in makeHttpRequest: $e');
       if (_context != null && _context!.mounted) {
         ReusableDialog.showErrorDialog(
           context: _context!,

@@ -12,9 +12,16 @@
 .swiftpm/
 migrate_working_dir/
 .env
+*.env.*
 key.properties
-my-release-key.jks
-key.jks
+*.jks
+*.keystore
+*.p12
+*.cer
+*.pem
+google-services.json
+GoogleService-Info.plist
+serviceAccountKey.json
 
 
 # IntelliJ related

@@ -9,18 +9,18 @@ import '../constants.dart';
 class DetailMahasiswaScreen extends StatefulWidget {
   final String nim;
 
-  const DetailMahasiswaScreen({Key? key, required this.nim}) : super(key: key);
+  const DetailMahasiswaScreen({super.key, required this.nim});
 
   @override
-  _DetailMahasiswaScreenState createState() => _DetailMahasiswaScreenState();
+  State<DetailMahasiswaScreen> createState() => _DetailMahasiswaScreenState();
 }
 
 class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with TickerProviderStateMixin {
   late DosenService _dosenService;
   Map<String, dynamic>? _mahasiswaData;
   List<Setoran> _setoranList = [];
-  List<Setoran> _cartToSave = [];
-  List<Setoran> _cartToCancel = [];
+  final List<Setoran> _cartToSave = [];
+  final List<Setoran> _cartToCancel = [];
   bool _isLoading = true;
   String _selectedFilter = 'Semua';
   late AnimationController _animationController;
@@ -28,7 +28,7 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
   bool _selectAllBelumSetor = false;
   bool _selectAllSudahSetor = false;
 
-  TextEditingController _dateController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
   DateTime? _selectedDate;
 
   @override
@@ -68,9 +68,12 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     final data = await _dosenService.getSetoranMahasiswa(widget.nim);
+    if (!mounted) return;
+
     if (data != null && data['response'] == true) {
       setState(() {
         _mahasiswaData = data['data'];
@@ -126,12 +129,14 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
 
   Future<void> _simpanSetoran() async {
     if (_cartToSave.isEmpty || _selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Pilih tanggal setoran terlebih dahulu."),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Pilih tanggal setoran terlebih dahulu."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
@@ -145,6 +150,8 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
       dataSetoran,
       _selectedDate!.toIso8601String().split('T')[0],
     );
+
+    if (!mounted) return;
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -168,13 +175,17 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
   Future<void> _batalkanSetoran() async {
     if (_cartToCancel.isEmpty) return;
 
-    final dataSetoran = _cartToCancel.map((s) => {
+    final dataSetoran = _cartToCancel
+        .where((s) => s.infoSetoran != null)
+        .map((s) => {
       'id': s.infoSetoran!.id,
       'id_komponen_setoran': s.id,
       'nama_komponen_setoran': s.nama,
     }).toList();
 
     final success = await _dosenService.deleteSetoran(widget.nim, dataSetoran);
+
+    if (!mounted) return;
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -202,7 +213,7 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -234,7 +245,7 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -268,6 +279,7 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
 
     final filePath = await _dosenService.getKartuMurojaahMahasiswaPdf(widget.nim);
 
+    if (!mounted) return;
     Navigator.pop(context);
 
     if (filePath != null) {
@@ -482,11 +494,11 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
 
     if (_cartToSave.isNotEmpty || _cartToCancel.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _animationController.forward();
+        if (mounted) _animationController.forward();
       });
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _animationController.reverse();
+        if (mounted) _animationController.reverse();
       });
     }
 
@@ -551,14 +563,14 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
                                 Text(
                                   '${info?['nim']} • Semester ${info?['semester']}',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     fontSize: 14,
                                   ),
                                 ),
                                 Text(
                                   info?['email'] ?? '',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.8),
+                                    color: Colors.white.withValues(alpha: 0.8),
                                     fontSize: 12,
                                   ),
                                 ),
@@ -571,7 +583,7 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Column(
@@ -582,7 +594,7 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
                                 Text(
                                   "Progress Muroja'ah",
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     fontSize: 14,
                                   ),
                                 ),
@@ -599,7 +611,7 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
                             const SizedBox(height: 8),
                             LinearProgressIndicator(
                               value: (setoranInfo?['persentase_progres_setor'] ?? 0) / 100,
-                              backgroundColor: Colors.white.withOpacity(0.3),
+                              backgroundColor: Colors.white.withValues(alpha: 0.3),
                               valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                               minHeight: 8,
                             ),
@@ -610,14 +622,14 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
                                 Text(
                                   '${setoranInfo?['total_sudah_setor']} dari ${setoranInfo?['total_wajib_setor']} surat',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     fontSize: 12,
                                   ),
                                 ),
                                 Text(
                                   'Terakhir: ${setoranInfo?['terakhir_setor']}',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     fontSize: 12,
                                   ),
                                 ),
@@ -771,8 +783,8 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
                                         color: setoran.sudahSetor
-                                            ? Colors.green.withOpacity(0.1)
-                                            : Colors.orange.withOpacity(0.1),
+                                            ? Colors.green.withValues(alpha: 0.1)
+                                            : Colors.orange.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
@@ -834,26 +846,42 @@ class _DetailMahasiswaScreenState extends State<DetailMahasiswaScreen> with Tick
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 80,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Tidak ada data ditemukan.',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.4,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.inbox_outlined,
+                  size: 80,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Tidak ada data ditemukan.',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tarik ke bawah untuk memperbarui',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[400],
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

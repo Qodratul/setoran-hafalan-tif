@@ -17,12 +17,12 @@ class Mahasiswa {
 
   factory Mahasiswa.fromJson(Map<String, dynamic> json) {
     return Mahasiswa(
-      nim: json['nim'],
-      nama: json['nama'],
-      email: json['email'],
-      angkatan: json['angkatan'],
-      semester: json['semester'],
-      infoSetoran: InfoSetoran.fromJson(json['info_setoran']),
+      nim: json['nim'] ?? '',
+      nama: json['nama'] ?? '',
+      email: json['email'] ?? '',
+      angkatan: json['angkatan'] ?? '',
+      semester: json['semester'] ?? 0,
+      infoSetoran: InfoSetoran.fromJson(json['info_setoran'] ?? {}),
     );
   }
 }
@@ -46,12 +46,12 @@ class InfoSetoran {
 
   factory InfoSetoran.fromJson(Map<String, dynamic> json) {
     return InfoSetoran(
-      totalWajibSetor: json['total_wajib_setor'],
-      totalSudahSetor: json['total_sudah_setor'],
-      totalBelumSetor: json['total_belum_setor'],
-      persentaseProgresSetor: json['persentase_progres_setor'].toDouble(),
+      totalWajibSetor: json['total_wajib_setor'] ?? 0,
+      totalSudahSetor: json['total_sudah_setor'] ?? 0,
+      totalBelumSetor: json['total_belum_setor'] ?? 0,
+      persentaseProgresSetor: (json['persentase_progres_setor'] ?? 0).toDouble(),
       tglTerakhirSetor: json['tgl_terakhir_setor'],
-      terakhirSetor: json['terakhir_setor'],
+      terakhirSetor: json['terakhir_setor'] ?? '',
     );
   }
 }

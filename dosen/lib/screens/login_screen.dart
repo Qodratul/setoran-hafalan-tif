@@ -4,10 +4,10 @@ import '../services/auth_service.dart';
 import '../constants.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
@@ -52,23 +52,19 @@ class _LoginScreenState extends State<LoginScreen> {
       authService.setContext(context);
 
       final success = await authService.login(email, password, context: context);
-      print('Login attempt with email: $email, success: $success');
+      debugPrint('Login attempt with email: $email, success: $success');
+
+      if (!mounted) return;
 
       if (success) {
-        if (mounted) {
-          Navigator.of(context).pushNamedAndRemoveUntil(
-            '/dashboard',
-                (route) => false,
-          );
-        }
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/dashboard',
+          (route) => false,
+        );
       } else {
-        if (mounted) {
-          setState(() {
-            if (authService.token == null) {
-              _errorMessage = 'Login gagal. Periksa email dan password Anda.';
-            }
-          });
-        }
+        setState(() {
+          _errorMessage = 'Login gagal. Periksa email dan password Anda.';
+        });
       }
     }
   }
@@ -142,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         'Aplikasi Muroja\'ah Juz 30 \nUIN SUSKA RIAU',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 16,
                           fontFamily: 'Poppins',
                         ),
@@ -151,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 10),
 
                       // Quran image
-                      Container(
+                      SizedBox(
                         height: constraints.maxHeight * 0.3,
                         child: Image.asset('assets/images/al-quran.png'),
                       ),
@@ -181,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: Colors.black.withValues(alpha: 0.1),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -196,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   prefixIcon: Icon(Icons.email_outlined, color: Colors.teal),
                                   hintText: 'Email/Username',
                                   hintStyle: TextStyle(color: Colors.grey),
-                                  border: const OutlineInputBorder(
+                                  border: OutlineInputBorder(
                                     borderRadius: BorderRadius.all(Radius.circular(12)),
                                   ),
                                   contentPadding: EdgeInsets.symmetric(vertical: 16),
@@ -219,7 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: Colors.black.withValues(alpha: 0.1),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
